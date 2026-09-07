@@ -1,0 +1,11 @@
+{
+  "name": "51 Okey Kanlı",
+  "short_name": "51 Okey",
+  "description": "Kanlı 51 Okey — online masa oyunu",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#1a110c",
+  "theme_color": "#1a110c",
+  "lang": "tr"
+}

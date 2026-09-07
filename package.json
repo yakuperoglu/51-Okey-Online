@@ -1,0 +1,16 @@
+{
+  "name": "okey-51-online",
+  "private": true,
+  "workspaces": [
+    "engine",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,magenta \"npm run dev -w @okey/server\" \"npm run dev -w @okey/client\"",
+    "test": "npm run test -w @okey/engine"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
