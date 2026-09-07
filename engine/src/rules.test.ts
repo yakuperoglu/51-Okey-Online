@@ -17,6 +17,14 @@ describe("taş seti", () => {
     expect(deck.filter((x) => x.kind === "fakeOkey")).toHaveLength(2);
   });
 
+  it("siyah ve mavi taşların kimliği çakışmaz", () => {
+    const deck = createDeck();
+    const ids = deck.map((t) => t.id);
+    expect(new Set(ids).size).toBe(deck.length);
+    expect(deck.filter((t) => t.color === "blue" && t.value === 13)).toHaveLength(2);
+    expect(deck.filter((t) => t.color === "black" && t.value === 13)).toHaveLength(2);
+  });
+
   it("gösterge kırmızı 4 ise okey kırmızı 5 olur", () => {
     expect(okeyFromIndicator(t("i", "red", 4))).toEqual({ color: "red", value: 5 });
   });

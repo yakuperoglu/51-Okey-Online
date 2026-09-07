@@ -4,6 +4,8 @@ import { TileView } from "./Tile";
 
 export const RACK_COLS = 12;
 export const RACK_SLOTS = 24;
+const DWELL_OCCUPIED_MS = 280;
+const DWELL_EMPTY_MS = 140;
 
 function shuffle<T>(items: T[]): T[] {
   const a = [...items];
@@ -78,11 +80,26 @@ export function Istaka({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [slots, setSlots] = useState<(string | null)[]>(() => scatter(tiles.map((t) => t.id)));
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
   const drag = useRef<{ id: string; x: number; y: number; moved: boolean } | null>(null);
+  const dwell = useRef<{ index: number; timer: number } | null>(null);
+  const hoverRef = useRef<number | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [hoverSlot, setHoverSlot] = useState<number | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const dealRef = useRef(dealKey);
+
+  function clearDwell() {
+    if (dwell.current) {
+      window.clearTimeout(dwell.current.timer);
+      dwell.current = null;
+    }
+  }
+
+  function commitMove(id: string, to: number) {
+    setSlots((prev) => moveToIndex(prev, id, to));
+  }
 
   useEffect(() => {
     if (dealRef.current !== dealKey) {
@@ -97,6 +114,8 @@ export function Istaka({
     onLayout?.(slots);
   }, [slots, onLayout]);
 
+  useEffect(() => () => clearDwell(), []);
+
   const byId = new Map(tiles.map((t) => [t.id, t]));
   const dragTile = dragging ? byId.get(dragging) : undefined;
   const top = slots.slice(0, RACK_COLS);
@@ -105,6 +124,7 @@ export function Istaka({
   function onPointerDown(event: PointerEvent<HTMLDivElement>, id: string) {
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
+    clearDwell();
     drag.current = { id, x: event.clientX, y: event.clientY, moved: false };
     setDragging(id);
     setGhost({ x: event.clientX, y: event.clientY });
@@ -119,28 +139,55 @@ export function Istaka({
     const overDiscard = Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-discard-drop]"));
     onHoverDiscard?.(overDiscard);
     if (overDiscard) {
+      clearDwell();
+      hoverRef.current = null;
       setHoverSlot(null);
       return;
     }
     const to = slotFromPoint(event.clientX, event.clientY);
     if (!Number.isFinite(to)) {
+      clearDwell();
+      hoverRef.current = null;
       setHoverSlot(null);
       return;
     }
+    hoverRef.current = to;
     setHoverSlot(to);
-    setSlots((prev) => moveToIndex(prev, d.id, to));
+    const from = slotsRef.current.indexOf(d.id);
+    if (from === to) {
+      clearDwell();
+      return;
+    }
+    if (dwell.current?.index === to) return;
+    clearDwell();
+    const occupant = slotsRef.current[to];
+    const wait = occupant && occupant !== d.id ? DWELL_OCCUPIED_MS : DWELL_EMPTY_MS;
+    dwell.current = {
+      index: to,
+      timer: window.setTimeout(() => {
+        dwell.current = null;
+        commitMove(d.id, to);
+      }, wait),
+    };
   }
 
   function onPointerUp(event: PointerEvent<HTMLDivElement>) {
     const d = drag.current;
     drag.current = null;
+    clearDwell();
     const overDiscard = Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-discard-drop]"));
+    const dropSlot = hoverRef.current ?? slotFromPoint(event.clientX, event.clientY);
     setDragging(null);
     setGhost(null);
     setHoverSlot(null);
+    hoverRef.current = null;
     onHoverDiscard?.(false);
     if (d?.moved && overDiscard && canDiscard) {
       onDiscard?.(d.id);
+      return;
+    }
+    if (d?.moved && Number.isFinite(dropSlot)) {
+      commitMove(d.id, dropSlot);
       return;
     }
     if (d && !d.moved) onToggle(d.id);

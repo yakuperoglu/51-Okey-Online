@@ -6,7 +6,7 @@ export function createDeck(): Tile[] {
     for (let value = 1; value <= 13; value++) {
       for (const copy of [0, 1]) {
         tiles.push({
-          id: `${color[0]}-${value}-${copy}`,
+          id: `${color}-${value}-${copy}`,
           color,
           value,
           kind: "normal",

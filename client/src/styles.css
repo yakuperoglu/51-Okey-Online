@@ -1364,6 +1364,7 @@ input.code { letter-spacing: 0.28em; text-align: center; font-weight: 700; }
   outline: 2px solid #ffe08a;
   outline-offset: -2px;
   border-radius: 3px;
+  background: rgba(255, 224, 138, 0.22);
 }
 .istaka-slot.is-selected .tile {
   transform: translateY(-7px);
