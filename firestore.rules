@@ -7,10 +7,32 @@ service cloud.firestore {
     function isMe(uid) {
       return signedIn() && request.auth.uid == uid;
     }
+    function tokensCreateOk() {
+      return request.resource.data.tokens == 0
+        && request.resource.data.googleBonusClaimed == false
+        && request.resource.data.authProvider == "guest";
+    }
+    function tokensUpdateOk() {
+      let oldT = resource.data.get("tokens", 0);
+      let newT = request.resource.data.get("tokens", 0);
+      let wasBonus = resource.data.get("googleBonusClaimed", false) == true;
+      let nowBonus = request.resource.data.get("googleBonusClaimed", false) == true;
+      let same = newT == oldT;
+      let googleGift = !wasBonus && nowBonus && newT == oldT + 100;
+      let spend = nowBonus == wasBonus && newT >= 0 && newT < oldT;
+      return same || googleGift || spend;
+    }
+    function providerOk() {
+      let p = request.resource.data.get("authProvider", "guest");
+      return p == "guest" || p == "google";
+    }
 
     match /users/{uid} {
       allow read: if signedIn();
-      allow create, update: if isMe(uid);
+      allow create: if isMe(uid) && tokensCreateOk() && providerOk();
+      allow update: if isMe(uid) && tokensUpdateOk() && providerOk()
+        && (resource.data.get("googleBonusClaimed", false) == false
+          || request.resource.data.googleBonusClaimed == true);
       allow delete: if false;
 
       match /friends/{fid} {
@@ -32,6 +54,13 @@ service cloud.firestore {
         allow create, update: if isMe(uid);
         allow delete: if isMe(uid) || (signedIn() && toUid == request.auth.uid);
       }
+    }
+
+    match /displayNames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
     }
   }
 }

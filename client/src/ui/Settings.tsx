@@ -40,7 +40,7 @@ export function SettingsSheet({
         <button type="button" className="ghost" onClick={onProfile}>
           Profili düzenle
         </button>
-        <p className="muted tiny">Giriş (Firebase Auth) sonraki adımda eklenecek.</p>
+        <p className="muted tiny">Google ile giriş profil ekranından yapılır. İlk Google kaydında 100 jeton verilir.</p>
       </div>
     </div>
   );

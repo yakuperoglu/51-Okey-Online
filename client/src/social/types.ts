@@ -1,9 +1,14 @@
-/** Firestore `users/{uid}` belgesi. Auth gelince uid = request.auth.uid. */
+export type AuthProvider = "guest" | "google";
+
+/** Firestore `users/{uid}` belgesi. */
 export interface UserProfile {
   uid: string;
   displayName: string;
   avatarId: string;
   friendCode: string;
+  tokens: number;
+  googleBonusClaimed: boolean;
+  authProvider: AuthProvider;
   createdAt: number;
   updatedAt: number;
 }
@@ -27,8 +32,10 @@ export interface IncomingRequest {
 export type Unsubscribe = () => void;
 
 export interface SocialRepo {
-  ensureProfile(uid: string, seed?: Partial<UserProfile>): Promise<UserProfile>;
+  ensureProfile(uid: string, seed?: Partial<UserProfile>, google?: boolean): Promise<UserProfile>;
   saveProfile(profile: UserProfile): Promise<UserProfile>;
+  applyGoogleAccount(uid: string): Promise<UserProfile>;
+  spendTokens(uid: string, amount: number): Promise<UserProfile>;
   watchFriends(uid: string, cb: (friends: FriendDoc[]) => void): Unsubscribe;
   watchIncoming(uid: string, cb: (reqs: IncomingRequest[]) => void): Unsubscribe;
   findByFriendCode(code: string): Promise<UserProfile | null>;

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "449284689672",
+    "project_id": "okey-b3177",
+    "storage_bucket": "okey-b3177.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:449284689672:android:1d20459f43a88e0a55e6bd",
+        "android_client_info": {
+          "package_name": "com.kanli51.okey"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "449284689672-m70cgmih01lrjk1grqnpp442lmfk5h4h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBY_dMMvO-440hKnGt2SSNaIbUTj5V2MzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "449284689672-m70cgmih01lrjk1grqnpp442lmfk5h4h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

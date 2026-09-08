@@ -4,7 +4,12 @@ build/
 .vite/
 *.log
 .env
+.env.*
 .env.local
+.env.production
+.env.development
+**/.env
+**/.env.*
 coverage/
 .DS_Store
 Thumbs.db

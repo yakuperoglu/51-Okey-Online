@@ -112,7 +112,7 @@ export function Lobby({
           <AvatarView id={profile?.avatarId} size="md" />
           <span>
             <strong>{profile?.displayName || "Oyuncu"}</strong>
-            <em>Profil · {profile?.friendCode ?? "------"}</em>
+            <em>{profile?.authProvider === "google" ? "Google" : "Misafir"} · {profile?.friendCode ?? "------"}</em>
           </span>
         </button>
         <div className="hall-logo">
@@ -120,6 +120,7 @@ export function Lobby({
           <span>OKEY</span>
         </div>
         <div className="hall-meta">
+          <span className="chip-tokens">{profile?.tokens ?? 0} jeton</span>
           <span className="chip-live">{Math.max(onlineHint, liveCount)} çevrimiçi</span>
         </div>
       </header>

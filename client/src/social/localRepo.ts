@@ -1,6 +1,8 @@
 import type { FriendDoc, IncomingRequest, SocialRepo, UserProfile } from "./types";
 import { DEFAULT_AVATAR, sanitizeAvatarId } from "./avatars";
 import { makeFriendCode } from "./codes";
+import { normalizeDisplayName, randomGuestName } from "./guestName";
+import { GOOGLE_SIGNIN_BONUS } from "./tokens";
 
 const KEY = {
   profile: "okey-profile",
@@ -37,35 +39,78 @@ function emitIncoming() {
 }
 
 export const localRepo: SocialRepo = {
-  async ensureProfile(uid, seed) {
+  async ensureProfile(uid, seed, google) {
     const existing = read<UserProfile | null>(KEY.profile, null);
     if (existing && existing.uid === uid) {
-      return {
+      const profile: UserProfile = {
         ...existing,
         avatarId: sanitizeAvatarId(existing.avatarId),
-        displayName: existing.displayName.slice(0, 16) || "Oyuncu",
+        displayName: existing.displayName.slice(0, 16) || randomGuestName(),
+        tokens: existing.tokens ?? 0,
+        googleBonusClaimed: existing.googleBonusClaimed ?? false,
+        authProvider: existing.authProvider ?? "guest",
       };
+      write(KEY.profile, profile);
+      if (google) return localRepo.applyGoogleAccount(uid);
+      return profile;
     }
     const now = Date.now();
     const profile: UserProfile = {
       uid,
-      displayName: seed?.displayName?.slice(0, 16) || existing?.displayName || "Oyuncu",
+      displayName: seed?.displayName?.slice(0, 16) || existing?.displayName || randomGuestName(),
       avatarId: sanitizeAvatarId(seed?.avatarId ?? existing?.avatarId ?? DEFAULT_AVATAR),
       friendCode: existing?.friendCode || makeFriendCode(),
+      tokens: existing?.tokens ?? 0,
+      googleBonusClaimed: existing?.googleBonusClaimed ?? false,
+      authProvider: existing?.authProvider ?? "guest",
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
     write(KEY.profile, profile);
+    if (google) return localRepo.applyGoogleAccount(uid);
     return profile;
   },
 
   async saveProfile(profile) {
+    const prev = read<UserProfile | null>(KEY.profile, null);
     const next: UserProfile = {
       ...profile,
-      displayName: profile.displayName.trim().slice(0, 16) || "Oyuncu",
+      displayName: normalizeDisplayName(profile.displayName) || prev?.displayName || randomGuestName(),
       avatarId: sanitizeAvatarId(profile.avatarId),
+      tokens: prev?.tokens ?? profile.tokens ?? 0,
+      googleBonusClaimed: prev?.googleBonusClaimed ?? profile.googleBonusClaimed ?? false,
+      authProvider: prev?.authProvider ?? profile.authProvider ?? "guest",
       updatedAt: Date.now(),
     };
+    write(KEY.profile, next);
+    return next;
+  },
+
+  async applyGoogleAccount(uid) {
+    const existing = read<UserProfile | null>(KEY.profile, null);
+    if (!existing || existing.uid !== uid) throw new Error("Profil bulunamadı.");
+    if (existing.googleBonusClaimed) {
+      const next = { ...existing, authProvider: "google" as const, updatedAt: Date.now() };
+      write(KEY.profile, next);
+      return next;
+    }
+    const next: UserProfile = {
+      ...existing,
+      tokens: (existing.tokens ?? 0) + GOOGLE_SIGNIN_BONUS,
+      googleBonusClaimed: true,
+      authProvider: "google",
+      updatedAt: Date.now(),
+    };
+    write(KEY.profile, next);
+    return next;
+  },
+
+  async spendTokens(uid, amount) {
+    const existing = read<UserProfile | null>(KEY.profile, null);
+    if (!existing || existing.uid !== uid) throw new Error("Profil bulunamadı.");
+    if (amount <= 0) return existing;
+    if ((existing.tokens ?? 0) < amount) throw new Error("Yeterli jetonun yok.");
+    const next = { ...existing, tokens: existing.tokens - amount, updatedAt: Date.now() };
     write(KEY.profile, next);
     return next;
   },

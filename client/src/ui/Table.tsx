@@ -78,14 +78,12 @@ function Plate({
   player,
   pos,
   avatar,
-  you,
   active,
   acting,
 }: {
   player: PublicPlayer;
   pos: (typeof POS)[number];
   avatar: ReactNode;
-  you?: boolean;
   active?: boolean;
   acting?: boolean;
 }) {
@@ -93,7 +91,7 @@ function Plate({
     <div className={`plate ${pos} ${active ? "active" : ""} ${acting ? "acting" : ""}`}>
       <span className="avatar">{avatar}</span>
       <div className="plate-text">
-        <strong>{you ? "siz" : player.name}</strong>
+        <strong>{player.name}</strong>
         <em>{player.score}</em>
       </div>
     </div>
@@ -317,18 +315,18 @@ export function Table({
 
         {state.players.map((p, i) => {
           const pos = POS[rel(i, you)];
+          if (pos === "bottom") return null;
           const last = p.discard[p.discard.length - 1];
           return (
             <div key={p.id} className={`seat ${pos} ${i === state.currentIndex ? "turn" : ""} ${actingId === p.id ? "acting" : ""}`}>
               <Plate
                 player={p}
                 pos={pos}
-                avatar={<AvatarView id={p.avatarId} size="md" />}
-                you={pos === "bottom"}
+                avatar={<AvatarView id={p.avatarId} size="sm" />}
                 active={i === state.currentIndex}
                 acting={actingId === p.id}
               />
-              {last && pos !== "bottom" ? (
+              {last ? (
                 <div className="discard-slot">
                   <TileView
                     tile={last}

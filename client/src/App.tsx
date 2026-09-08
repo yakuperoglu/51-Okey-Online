@@ -12,6 +12,7 @@ import type {
 } from "@okey/engine";
 import { connect, send } from "./net";
 import { useSocial } from "./social/useSocial";
+import { assertCanEnterTable, tableEntryCost, type TableStakeKind } from "./social/tokens";
 import { Lobby, Waiting } from "./ui/Lobby";
 import { Table } from "./ui/Table";
 import { ProfileSheet } from "./ui/Profile";
@@ -22,7 +23,7 @@ import { playCancel, playClick, playJoin, setSoundEnabled } from "./sound";
 export default function App() {
   const socketRef = useRef<Socket | null>(null);
   const social = useSocial();
-  const name = social.profile?.displayName || "Oyuncu";
+  const name = social.profile?.displayName || "misafir";
   const avatarId = social.profile?.avatarId;
   const [panel, setPanel] = useState<null | "profile" | "friends" | "settings" | "help">(null);
   const [showRooms, setShowRooms] = useState(false);
@@ -101,9 +102,19 @@ export default function App() {
     return "lobby";
   }, [game, room]);
 
+  function gateTable(kind: TableStakeKind) {
+    assertCanEnterTable(social.profile?.tokens ?? 0, tableEntryCost(kind));
+  }
+
   function create(solo = false) {
     const socket = socketRef.current;
     if (!socket) return;
+    try {
+      gateTable(solo ? "bot" : visibility === "private" ? "private" : "public");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Masaya girilemedi.");
+      return;
+    }
     playJoin();
     setPendingSolo(solo);
     send(socket, {
@@ -120,6 +131,12 @@ export default function App() {
   function join(roomCode: string) {
     const socket = socketRef.current;
     if (!socket) return;
+    try {
+      gateTable("public");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Masaya girilemedi.");
+      return;
+    }
     playClick();
     send(socket, { type: "joinRoom", code: roomCode, name: name || "Oyuncu", avatarId });
   }
@@ -127,6 +144,12 @@ export default function App() {
   function quickPlay() {
     const socket = socketRef.current;
     if (!socket) return;
+    try {
+      gateTable("quick");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Masaya girilemedi.");
+      return;
+    }
     playJoin();
     setSearching(true);
     setError(null);
@@ -256,7 +279,9 @@ export default function App() {
         <ProfileSheet
           profile={social.profile}
           cloud={social.cloud}
+          google={social.google}
           onSave={social.saveProfile}
+          onGoogle={social.signInGoogle}
           onClose={() => setPanel(null)}
         />
       ) : null}
