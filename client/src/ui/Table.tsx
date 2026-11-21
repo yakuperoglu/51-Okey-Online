@@ -93,7 +93,7 @@ function Seat({
         {pos !== "bottom" ? <b className="count-badge" title="Eldeki taş">{player.tileCount}</b> : null}
       </div>
       <div className="seat-text">
-        <strong>{player.name}</strong>
+        <strong title={player.name}>{pos === "bottom" || player.name.length <= 10 ? player.name : `${player.name.slice(0, 9)}…`}</strong>
         <em>{player.score}</em>
       </div>
     </div>
@@ -107,6 +107,7 @@ function DiscardSpot({
   droppable,
   hot,
   onTake,
+  onTap,
 }: {
   pos: Pos;
   owner: PublicPlayer | undefined;
@@ -114,6 +115,7 @@ function DiscardSpot({
   droppable?: boolean;
   hot?: boolean;
   onTake?: () => void;
+  onTap?: () => void;
 }) {
   const pile = owner?.discard ?? [];
   const last = pile[pile.length - 1];
@@ -123,6 +125,7 @@ function DiscardSpot({
       className={`discard-spot ${pos} ${takeable ? "takeable" : ""} ${droppable ? "droppable" : ""} ${hot ? "hot" : ""}`}
       {...(pos === "bottom" ? { "data-discard-drop": "" } : {})}
       title={pos === "bottom" ? "Taşı buraya bırakarak at" : undefined}
+      onClick={onTap}
     >
       {under ? (
         <span className="under">
@@ -430,6 +433,12 @@ export function Table({
             <div className="pile-item" title={`Okey: ${COLOR_TR[state.okey.color]} ${state.okey.value}`}>
               <TileView tile={state.indicator} />
               <b className="well-label">Gösterge</b>
+              <span className="okey-line">
+                <b className="well-label">Okey</b>
+                <span className="okey-mini">
+                  <TileView tile={{ id: "okey-face", color: state.okey.color, value: state.okey.value, kind: "normal" }} small />
+                </span>
+              </span>
             </div>
             <div className={`pile-item draw ${needDraw ? "glow" : ""}`}>
               <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
@@ -451,15 +460,16 @@ export function Table({
                 droppable={isMine && canDiscard}
                 hot={isMine && overDiscard}
                 onTake={takeable ? () => onAction({ type: "drawDiscard" }) : undefined}
+                onTap={isMine && canDiscard && selected.length === 1 ? () => discardTile(selected[0]) : undefined}
               />
             );
           })}
 
-          <div className="hint-pill">
-            <span>{status}</span>
-            {flash ? <em>{flash}</em> : null}
-          </div>
         </section>
+        <div className="hint-pill">
+          <span>{status}</span>
+          {flash ? <em>{flash}</em> : null}
+        </div>
 
         {flying.map((f) => {
           const idx = state.players.findIndex((p) => p.id === f.fromId);
@@ -507,10 +517,10 @@ export function Table({
           arrange={arrange}
         />
         <div className="actions">
-          <button type="button" onClick={() => arrangeRack("series")}>
+          <button type="button" className="half" onClick={() => arrangeRack("series")}>
             Seri diz
           </button>
-          <button type="button" onClick={() => arrangeRack("pairs")}>
+          <button type="button" className="half" onClick={() => arrangeRack("pairs")}>
             Çift diz
           </button>
           <button
@@ -522,21 +532,13 @@ export function Table({
           >
             {openLabel}
           </button>
-          <button type="button" onClick={addGroup} disabled={selected.length < 2}>
+          <button type="button" className="third" onClick={addGroup} disabled={selected.length < 2}>
             Grup
           </button>
-          <button
-            type="button"
-            className="danger"
-            disabled={!canDiscard || selected.length !== 1}
-            onClick={() => discardTile(selected[0])}
-          >
-            At
-          </button>
-          <button type="button" onClick={hint}>
+          <button type="button" className="third" onClick={hint}>
             İpucu
           </button>
-          <button type="button" onClick={openPairsManual} disabled={!groups.length && selected.length !== 2}>
+          <button type="button" className="third" onClick={openPairsManual} disabled={!groups.length && selected.length !== 2}>
             Çifte
           </button>
         </div>
