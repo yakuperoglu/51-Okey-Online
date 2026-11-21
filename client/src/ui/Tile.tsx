@@ -7,6 +7,9 @@ const COLOR_CLASS: Record<Tile["color"], string> = {
   blue: "c-blue",
 };
 
+const HEART = "M12 21S3.2 15.2 1.6 9.7C.4 5.7 3.4 3 6.8 3c2.1 0 3.6 1.1 5.2 3.2C13.6 4.1 15.1 3 17.2 3c3.4 0 6.4 2.7 5.2 6.7C20.8 15.2 12 21 12 21z";
+const STAR = "M12 1.8l2.9 6.7 7.3.7-5.5 4.8 1.6 7.1L12 17.4l-6.3 3.7 1.6-7.1L1.8 9.2l7.3-.7z";
+
 export function TileView({
   tile,
   selected,
@@ -25,7 +28,7 @@ export function TileView({
   board?: boolean;
 }) {
   const wild = tile.kind === "wildOkey";
-  const fake = Boolean(tile.wasFakeOkey);
+  const fake = tile.kind === "fakeOkey" || Boolean(tile.wasFakeOkey);
   const className = [
     "tile",
     COLOR_CLASS[tile.color],
@@ -41,30 +44,32 @@ export function TileView({
 
   const face = (
     <span className="tile-face">
-      <span className="num">{wild ? tile.value || "O" : tile.value}</span>
+      {wild ? (
+        <svg className="joker-star" viewBox="0 0 24 24" aria-hidden>
+          <path d={STAR} />
+        </svg>
+      ) : (
+        <span className="num">{tile.value}</span>
+      )}
       <span className="suit-well" aria-hidden>
         <svg className="suit" viewBox="0 0 24 24">
-          <path d="M12 21S3.2 15.2 1.6 9.7C.4 5.7 3.4 3 6.8 3c2.1 0 3.6 1.1 5.2 3.2C13.6 4.1 15.1 3 17.2 3c3.4 0 6.4 2.7 5.2 6.7C20.8 15.2 12 21 12 21z" />
+          {fake && !wild ? <circle cx="12" cy="12" r="7" /> : <path d={wild ? STAR : HEART} />}
         </svg>
       </span>
     </span>
   );
+  const title = wild ? "Okey" : fake ? "Sahte okey" : `${tile.value}`;
 
   if (rack || !onClick) {
     return (
-      <div className={className} title={wild ? "Okey" : `${tile.value}`}>
+      <div className={className} title={title}>
         {face}
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      className={className}
-      onClick={onClick}
-      title={wild ? "Okey" : `${tile.value}`}
-    >
+    <button type="button" className={className} onClick={onClick} title={title}>
       {face}
     </button>
   );

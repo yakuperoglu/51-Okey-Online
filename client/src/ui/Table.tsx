@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  arrangeHand,
   canAttach,
   canSwapOkey,
   COLOR_TR,
@@ -15,8 +16,11 @@ import { Istaka } from "./Istaka";
 import { scoreRack } from "./rackScore";
 import { TileBack, TileView } from "./Tile";
 import { AvatarView } from "./Avatar";
+import "./table.css";
 
+/** Seat position by relative index: 0 = you, then counter-clockwise (next player is on your right). */
 const POS = ["bottom", "right", "top", "left"] as const;
+type Pos = (typeof POS)[number];
 
 type FlyChip = {
   id: string;
@@ -49,11 +53,6 @@ function MeldView({
     <button
       type="button"
       className={`meld ${meld.type} ${highlight ? "hot" : ""} ${arriving ? "arrive" : ""}`}
-      style={
-        meld.type === "set"
-          ? { gridRow: `span ${meld.tiles.length}` }
-          : { gridColumn: `span ${meld.tiles.length}` }
-      }
       onClick={onClick}
       disabled={!onClick}
     >
@@ -74,7 +73,7 @@ function MeldView({
   );
 }
 
-function Plate({
+function Seat({
   player,
   pos,
   avatar,
@@ -82,18 +81,61 @@ function Plate({
   acting,
 }: {
   player: PublicPlayer;
-  pos: (typeof POS)[number];
+  pos: Pos;
   avatar: ReactNode;
   active?: boolean;
   acting?: boolean;
 }) {
   return (
-    <div className={`plate ${pos} ${active ? "active" : ""} ${acting ? "acting" : ""}`}>
-      <span className="avatar">{avatar}</span>
-      <div className="plate-text">
+    <div className={`seat ${pos} ${active ? "turn" : ""} ${acting ? "acting" : ""} ${player.connected ? "" : "offline"}`}>
+      <div className="av">
+        {avatar}
+        {pos !== "bottom" ? <b className="count-badge" title="Eldeki taş">{player.tileCount}</b> : null}
+      </div>
+      <div className="seat-text">
         <strong>{player.name}</strong>
         <em>{player.score}</em>
       </div>
+    </div>
+  );
+}
+
+function DiscardSpot({
+  pos,
+  owner,
+  takeable,
+  droppable,
+  hot,
+  onTake,
+}: {
+  pos: Pos;
+  owner: PublicPlayer | undefined;
+  takeable?: boolean;
+  droppable?: boolean;
+  hot?: boolean;
+  onTake?: () => void;
+}) {
+  const pile = owner?.discard ?? [];
+  const last = pile[pile.length - 1];
+  const under = pile[pile.length - 2];
+  return (
+    <div
+      className={`discard-spot ${pos} ${takeable ? "takeable" : ""} ${droppable ? "droppable" : ""} ${hot ? "hot" : ""}`}
+      {...(pos === "bottom" ? { "data-discard-drop": "" } : {})}
+      title={pos === "bottom" ? "Taşı buraya bırakarak at" : undefined}
+    >
+      {under ? (
+        <span className="under">
+          <TileView tile={under} small />
+        </span>
+      ) : null}
+      {last ? (
+        <span className="top-tile">
+          <TileView tile={last} onClick={takeable ? onTake : undefined} />
+        </span>
+      ) : (
+        <em className="spot-empty">{pos === "bottom" ? "At" : ""}</em>
+      )}
     </div>
   );
 }
@@ -120,13 +162,21 @@ export function Table({
   const [arriveMelds, setArriveMelds] = useState<Set<string>>(new Set());
   const [arriveTiles, setArriveTiles] = useState<Set<string>>(new Set());
   const [actingId, setActingId] = useState<string | null>(null);
+  const [arrange, setArrange] = useState<{ seq: number; groups: string[][]; rest: string[] } | null>(null);
   const prevMelds = useRef<TableMeld[] | null>(null);
+  const baseScores = useRef<Map<string, number>>(new Map());
   const onRackLayout = useCallback((slots: (string | null)[]) => setRackSlots(slots), []);
+
+  // Remember scores while the round is being played so the round-end modal can show deltas.
+  if (state.phase === "playing") {
+    baseScores.current = new Map(state.players.map((p) => [p.id, p.score]));
+  }
 
   const you = state.yourIndex;
   const needDraw = state.isYourTurn && !state.turn.hasDrawn;
   const prevIndex = (you + 3) % 4;
   const youPlayer = state.players[you];
+  const minPairs = state.config.minPairs;
 
   const selectedTiles = useMemo(
     () => selected.map((id) => state.yourHand.find((t) => t.id === id)).filter(Boolean) as Tile[],
@@ -134,7 +184,6 @@ export function Table({
   );
 
   const preview = selectedTiles.length >= 2 ? validateMeld(selectedTiles, false) : null;
-  const pairPreview = selectedTiles.length === 2 ? validateMeld(selectedTiles, true) : null;
   const grouped = useMemo(() => new Set(groups.flat()), [groups]);
   const pendingPoints = groups.reduce((sum, g) => {
     const tiles = g.map((id) => state.yourHand.find((t) => t.id === id)).filter(Boolean) as Tile[];
@@ -143,14 +192,9 @@ export function Table({
   }, preview?.ok ? preview.meld.points : 0);
 
   const rackScore = useMemo(() => scoreRack(rackSlots, state.yourHand), [rackSlots, state.yourHand]);
-  const okeyTile: Tile = {
-    id: "okey-face",
-    color: state.okey.color,
-    value: state.okey.value,
-    kind: "normal",
-  };
   const canDiscard = state.isYourTurn && !needDraw && state.phase === "playing";
-  const myDiscard = youPlayer?.discard[youPlayer.discard.length - 1];
+
+  // "El aç": contiguous blocks on the rack are melds (rackScore), manual groups / selection are the fallback.
   const openingGroups = groups.length
     ? groups
     : rackScore.groups.length
@@ -159,7 +203,13 @@ export function Table({
         ? [selected]
         : [];
   const openingPoints = groups.length ? pendingPoints : rackScore.points;
-  const canOpen51 = openingGroups.length > 0 && (Boolean(youPlayer?.opened) || openingPoints >= 51);
+  const opened = Boolean(youPlayer?.opened);
+  const canSeries = openingGroups.length > 0 && (opened || openingPoints >= 51);
+  const pairGroups = rackScore.pairGroups;
+  const canPairs = !opened && pairGroups.length >= minPairs;
+  const useSeries = canSeries || !canPairs;
+  const openLabel = useSeries ? `El aç (${openingPoints})` : `El aç (${pairGroups.length} çift)`;
+  const canOpenNow = canDiscard && (canSeries || canPairs);
 
   const processTargets = useMemo(() => {
     if (selected.length !== 1) return new Set<string>();
@@ -251,16 +301,22 @@ export function Table({
     setSelected([]);
   }
 
-  function open(goingPairs: boolean) {
-    const payload = goingPairs
-      ? groups.length
-        ? groups
-        : selected.length === 2
-          ? [selected]
-          : []
-      : openingGroups;
+  function openHand() {
+    if (!canOpenNow) return;
+    if (useSeries) {
+      onAction({ type: "open", groups: openingGroups, goingPairs: false });
+    } else {
+      onAction({ type: "open", groups: pairGroups, goingPairs: true });
+    }
+    setGroups([]);
+    setSelected([]);
+  }
+
+  /** Legacy fallback: explicitly open the grouped / selected tiles as pairs. */
+  function openPairsManual() {
+    const payload = groups.length ? groups : selected.length === 2 ? [selected] : [];
     if (!payload.length) return;
-    onAction({ type: "open", groups: payload, goingPairs });
+    onAction({ type: "open", groups: payload, goingPairs: true });
     setGroups([]);
     setSelected([]);
   }
@@ -286,13 +342,27 @@ export function Table({
   }
 
   function hint() {
-    const h = openingHint(state.yourHand, state.config.minPairs);
+    const h = openingHint(state.yourHand, minPairs);
     if (!h) return;
     setGroups(h.groups);
     setSelected([]);
   }
 
+  function arrangeRack(mode: "series" | "pairs") {
+    const result = arrangeHand(state.yourHand, mode);
+    setGroups([]);
+    setSelected([]);
+    setArrange((a) => ({ seq: (a?.seq ?? 0) + 1, groups: result.groups, rest: result.rest }));
+  }
+
   const currentName = state.players[state.currentIndex]?.name ?? "";
+  const status = state.isYourTurn
+    ? needDraw
+      ? "Sıra sende: taş çek"
+      : "Per aç veya taş at"
+    : `Sıra: ${currentName}`;
+  const kanli = state.config.ruleset === "kanli";
+  const winner = state.finish ? state.players.find((p) => p.id === state.finish?.winnerId) : undefined;
 
   return (
     <div className="play okey-table">
@@ -303,63 +373,92 @@ export function Table({
       </div>
 
       <div className="arena">
-        <button type="button" className="hud-x" onClick={onLeave} aria-label="Çık">
-          ×
-        </button>
-        <span className="hud-round">
-          {state.round}. El
-        </span>
-        <button type="button" className="hud-score" onClick={() => setSheet(true)} aria-label="Skor">
-          ✎
-        </button>
+        <div className="hud hud-l">
+          <button type="button" className="hud-btn" onClick={onLeave} aria-label="Çık" title="Çık">
+            ×
+          </button>
+          <span className="hud-chip">{state.round}. El</span>
+        </div>
+        <div className="hud hud-r">
+          {kanli ? (
+            <span className="hud-chip pot" title="Çanak">
+              Çanak <b>{state.pot}</b>
+            </span>
+          ) : null}
+          <button type="button" className="hud-btn" onClick={() => setSheet(true)} aria-label="Skor tablosu" title="Skor tablosu">
+            ≡
+          </button>
+        </div>
 
         {state.players.map((p, i) => {
           const pos = POS[rel(i, you)];
-          if (pos === "bottom") return null;
-          const last = p.discard[p.discard.length - 1];
           return (
-            <div key={p.id} className={`seat ${pos} ${i === state.currentIndex ? "turn" : ""} ${actingId === p.id ? "acting" : ""}`}>
-              <Plate
-                player={p}
-                pos={pos}
-                avatar={<AvatarView id={p.avatarId} size="sm" />}
-                active={i === state.currentIndex}
-                acting={actingId === p.id}
-              />
-              {last ? (
-                <div className="discard-slot">
-                  <TileView
-                    tile={last}
-                    onClick={needDraw && i === prevIndex ? () => onAction({ type: "drawDiscard" }) : undefined}
-                  />
-                </div>
-              ) : null}
-            </div>
+            <Seat
+              key={p.id}
+              player={p}
+              pos={pos}
+              avatar={<AvatarView id={p.avatarId} size="md" />}
+              active={i === state.currentIndex}
+              acting={actingId === p.id}
+            />
           );
         })}
 
-        <section className="board">
-          {state.players.map((p, i) => {
-            const pos = POS[rel(i, you)];
-            const mine = p.id === youPlayer?.id;
+        <section className="center">
+          {POS.map((pos) => {
+            const idx = (you + POS.indexOf(pos)) % 4;
+            const p = state.players[idx];
+            if (!p) return null;
             const melds = meldsByOwner.get(p.id) ?? [];
             return (
-              <div key={p.id} className={`board-zone ${pos} ${mine ? "mine" : ""} ${melds.length ? "has-melds" : ""}`}>
-                <div className="zone-melds">
-                  {melds.map((m) => (
-                    <MeldView
-                      key={m.id}
-                      meld={m}
-                      arriving={arriveMelds.has(m.id)}
-                      arrivingTiles={arriveTiles}
-                      highlight={processTargets.has(m.id)}
-                      onClick={processTargets.has(m.id) ? () => process(m) : undefined}
-                    />
-                  ))}
-                </div>
+              <div key={pos} className={`zone ${pos} ${pos === "bottom" ? "mine" : ""}`}>
+                {melds.map((m) => (
+                  <MeldView
+                    key={m.id}
+                    meld={m}
+                    arriving={arriveMelds.has(m.id)}
+                    arrivingTiles={arriveTiles}
+                    highlight={processTargets.has(m.id)}
+                    onClick={processTargets.has(m.id) ? () => process(m) : undefined}
+                  />
+                ))}
               </div>
             );
           })}
+
+          <div className="pile-cluster">
+            <div className="pile-item" title={`Okey: ${COLOR_TR[state.okey.color]} ${state.okey.value}`}>
+              <TileView tile={state.indicator} />
+              <b className="well-label">Gösterge</b>
+            </div>
+            <div className={`pile-item draw ${needDraw ? "glow" : ""}`}>
+              <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
+              <b className="well-label">{pad3(state.drawPileCount)}</b>
+            </div>
+          </div>
+
+          {POS.map((pos) => {
+            const idx = (you + POS.indexOf(pos)) % 4;
+            const p = state.players[idx];
+            const isMine = pos === "bottom";
+            const takeable = needDraw && idx === prevIndex;
+            return (
+              <DiscardSpot
+                key={pos}
+                pos={pos}
+                owner={p}
+                takeable={takeable}
+                droppable={isMine && canDiscard}
+                hot={isMine && overDiscard}
+                onTake={takeable ? () => onAction({ type: "drawDiscard" }) : undefined}
+              />
+            );
+          })}
+
+          <div className="hint-pill">
+            <span>{status}</span>
+            {flash ? <em>{flash}</em> : null}
+          </div>
         </section>
 
         {flying.map((f) => {
@@ -375,112 +474,122 @@ export function Table({
           );
         })}
 
-        <div className="center-well">
-          <div className="okey-show" title={`Okey: ${COLOR_TR[state.okey.color]} ${state.okey.value}`}>
-            <TileView tile={okeyTile} />
-            <b className="well-label">Okey</b>
+        {groups.length ? (
+          <div className="pending">
+            {groups.map((g, i) => (
+              <div key={i} className="pending-group">
+                {g.map((id) => {
+                  const tile = state.yourHand.find((t) => t.id === id);
+                  return tile ? <TileView key={id} tile={tile} board small /> : null;
+                })}
+              </div>
+            ))}
+            <button type="button" className="mini-btn" onClick={() => setGroups([])}>
+              Sil
+            </button>
           </div>
-          <div className="draw-well">
-            <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
-            <b className="well-label">{pad3(state.drawPileCount)}</b>
-          </div>
-        </div>
+        ) : null}
+      </div>
 
-        <div
-          className={`discard-well ${overDiscard ? "hot" : ""} ${canDiscard ? "open" : ""}`}
-          data-discard-drop
-          title="Taşı buraya bırakarak at"
-        >
-          {myDiscard ? <TileView tile={myDiscard} /> : <em className="well-label">At</em>}
+      <div className="bottom">
+        <Istaka
+          key={state.round}
+          dealKey={`${state.round}-${state.indicator.id}`}
+          tiles={state.yourHand}
+          selected={selected}
+          grouped={grouped}
+          scored={rackScore.ids}
+          onToggle={toggle}
+          canDiscard={canDiscard}
+          onDiscard={discardTile}
+          onHoverDiscard={setOverDiscard}
+          onLayout={onRackLayout}
+          arrange={arrange}
+        />
+        <div className="actions">
+          <button type="button" onClick={() => arrangeRack("series")}>
+            Seri diz
+          </button>
+          <button type="button" onClick={() => arrangeRack("pairs")}>
+            Çift diz
+          </button>
+          <button
+            type="button"
+            className={`primary wide ${canOpenNow ? "ready" : ""}`}
+            onClick={openHand}
+            disabled={!canOpenNow}
+            title={`Seri için en az 51 puan, çift için en az ${minPairs} çift`}
+          >
+            {openLabel}
+          </button>
+          <button type="button" onClick={addGroup} disabled={selected.length < 2}>
+            Grup
+          </button>
+          <button
+            type="button"
+            className="danger"
+            disabled={!canDiscard || selected.length !== 1}
+            onClick={() => discardTile(selected[0])}
+          >
+            At
+          </button>
+          <button type="button" onClick={hint}>
+            İpucu
+          </button>
+          <button type="button" onClick={openPairsManual} disabled={!groups.length && selected.length !== 2}>
+            Çifte
+          </button>
         </div>
+      </div>
 
-        {state.phase === "roundEnd" ? (
+      {state.phase === "roundEnd" ? (
+        <div className="modal-wrap">
           <div className="round-end">
             <h3>El bitti</h3>
             {state.finish ? (
-              <p>
-                {state.players.find((p) => p.id === state.finish?.winnerId)?.name} kazandı
-                {state.finish.withOkey ? " · kanlı" : ""}
-                {state.finish.withPairs ? " · çift" : ""} ({state.finish.winnerDelta})
+              <p className="re-line">
+                <b>{winner?.name}</b> kazandı
+                {state.finish.withOkey ? " · okeyle" : ""}
+                {state.finish.withPairs ? " · çiftle" : ""}
+                {state.finish.multiplier > 1 ? ` · x${state.finish.multiplier}` : ""}
               </p>
             ) : (
-              <p>Taşlar bitti.</p>
+              <p className="re-line">Taşlar bitti.</p>
             )}
+            <table className="re-table">
+              <thead>
+                <tr>
+                  <th>Oyuncu</th>
+                  <th>Bu el</th>
+                  <th>Toplam</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.players.map((p) => {
+                  const base = baseScores.current.get(p.id);
+                  const delta = base === undefined ? 0 : p.score - base;
+                  return (
+                    <tr key={p.id} className={p.id === winner?.id ? "win" : ""}>
+                      <td>{p.id === youPlayer?.id ? `${p.name} (sen)` : p.name}</td>
+                      <td className={delta > 0 ? "pos" : delta < 0 ? "neg" : ""}>
+                        {delta > 0 ? `+${delta}` : delta}
+                      </td>
+                      <td>{p.score}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
             {isHost ? (
               <button type="button" className="primary" onClick={() => onAction({ type: "nextRound" })}>
-                Sonraki el
+                Yeni el
               </button>
             ) : (
               <p className="muted">Oda sahibi yeni eli başlatacak.</p>
             )}
           </div>
-        ) : null}
-      </div>
-
-      <div className="fab-bar">
-        <div className={`hud-points ${rackScore.points >= 51 ? "ready" : ""}`} title="Istaka per puanı">
-          {pad3(rackScore.points)}
-        </div>
-        <span className="fab-status">
-          {state.isYourTurn
-            ? needDraw
-              ? "Taş çek"
-              : "Per aç veya at"
-            : `Sıra: ${currentName}`}
-          {flash ? <em> {flash}</em> : null}
-        </span>
-        <button type="button" onClick={addGroup} disabled={selected.length < 2}>
-          Grup
-        </button>
-        <button type="button" onClick={() => open(false)} disabled={!canOpen51}>
-          51 aç
-        </button>
-        <button type="button" onClick={() => open(true)} disabled={!groups.length && selected.length !== 2}>
-          Çifte
-        </button>
-        <button
-          type="button"
-          className="danger"
-          disabled={!canDiscard || selected.length !== 1}
-          onClick={() => discardTile(selected[0])}
-        >
-          At
-        </button>
-        <button type="button" className="ghost" onClick={hint}>
-          ?
-        </button>
-        {pairPreview?.ok || preview?.ok ? <b>{preview?.ok ? `${preview.meld.points}` : "çift"}</b> : null}
-      </div>
-
-      {groups.length ? (
-        <div className="pending">
-          {groups.map((g, i) => (
-            <div key={i} className="pending-group">
-              {g.map((id) => {
-                const tile = state.yourHand.find((t) => t.id === id);
-                return tile ? <TileView key={id} tile={tile} board small /> : null;
-              })}
-            </div>
-          ))}
-          <button type="button" className="ghost" onClick={() => setGroups([])}>
-            Sil
-          </button>
         </div>
       ) : null}
-
-      <Istaka
-        key={state.round}
-        dealKey={`${state.round}-${state.indicator.id}`}
-        tiles={state.yourHand}
-        selected={selected}
-        grouped={grouped}
-        scored={rackScore.ids}
-        onToggle={toggle}
-        canDiscard={canDiscard}
-        onDiscard={discardTile}
-        onHoverDiscard={setOverDiscard}
-        onLayout={onRackLayout}
-      />
 
       {sheet ? (
         <div className="sheet" onClick={() => setSheet(false)}>

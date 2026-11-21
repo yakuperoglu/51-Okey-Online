@@ -5,7 +5,22 @@ export type RackScore = {
   points: number;
   groups: string[][];
   ids: Set<string>;
+  /** Contiguous 2-tile blocks that are valid pairs (for "çifte aç"). */
+  pairGroups: string[][];
 };
+
+function pairBlock(tiles: Tile[]): string[][] {
+  const out: string[][] = [];
+  let i = 0;
+  while (i + 1 < tiles.length) {
+    const two = [tiles[i], tiles[i + 1]];
+    if (validateMeld(two, true).ok) {
+      out.push(two.map((t) => t.id));
+      i += 2;
+    } else i += 1;
+  }
+  return out;
+}
 
 function bestMeld(tiles: Tile[]) {
   const forward = validateMeld(tiles, false);
@@ -48,12 +63,14 @@ export function scoreRack(slots: (string | null)[], tiles: Tile[]): RackScore {
   let points = 0;
   const groups: string[][] = [];
   const ids = new Set<string>();
+  const pairGroups: string[][] = [];
 
   for (const offset of [0, RACK_COLS]) {
     const row = slots.slice(offset, offset + RACK_COLS);
     let block: Tile[] = [];
     const flush = () => {
       if (!block.length) return;
+      pairGroups.push(...pairBlock(block));
       const scored = scoreBlock(block);
       points += scored.points;
       for (const g of scored.groups) {
@@ -70,5 +87,5 @@ export function scoreRack(slots: (string | null)[], tiles: Tile[]): RackScore {
     flush();
   }
 
-  return { points, groups, ids };
+  return { points, groups, ids, pairGroups };
 }

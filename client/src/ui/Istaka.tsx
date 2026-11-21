@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { Tile } from "@okey/engine";
 import { TileView } from "./Tile";
 
-export const RACK_COLS = 12;
-export const RACK_SLOTS = 24;
+export const RACK_COLS = 13;
+export const RACK_SLOTS = RACK_COLS * 2;
 const DWELL_OCCUPIED_MS = 280;
 const DWELL_EMPTY_MS = 140;
 
@@ -38,6 +38,27 @@ function syncSlots(prev: (string | null)[], tiles: Tile[]): (string | null)[] {
   return next;
 }
 
+/** Lay groups out contiguously (one empty slot between), never splitting a group across rows. */
+function layoutSlots(groups: string[][], rest: string[]): (string | null)[] {
+  const slots: (string | null)[] = Array.from({ length: RACK_SLOTS }, () => null);
+  let pos = 0;
+  for (const g of groups) {
+    if ((pos % RACK_COLS) + g.length > RACK_COLS && pos < RACK_COLS) pos = RACK_COLS;
+    for (const id of g) if (pos < RACK_SLOTS) slots[pos++] = id;
+    if (pos % RACK_COLS !== 0) pos += 1;
+  }
+  for (const id of rest) {
+    while (pos < RACK_SLOTS && slots[pos]) pos++;
+    if (pos < RACK_SLOTS) slots[pos++] = id;
+  }
+  for (const id of [...groups.flat(), ...rest]) {
+    if (slots.includes(id)) continue;
+    const free = slots.indexOf(null);
+    if (free >= 0) slots[free] = id;
+  }
+  return slots;
+}
+
 function moveToIndex(slots: (string | null)[], fromId: string, toIndex: number): (string | null)[] {
   const from = slots.indexOf(fromId);
   if (from < 0 || from === toIndex) return slots;
@@ -66,6 +87,7 @@ export function Istaka({
   onDiscard,
   onHoverDiscard,
   onLayout,
+  arrange,
 }: {
   tiles: Tile[];
   selected: string[];
@@ -77,6 +99,8 @@ export function Istaka({
   onDiscard?: (tileId: string) => void;
   onHoverDiscard?: (over: boolean) => void;
   onLayout?: (slots: (string | null)[]) => void;
+  /** Bump `seq` to re-lay the rack: groups contiguous, rest after. */
+  arrange?: { seq: number; groups: string[][]; rest: string[] } | null;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [slots, setSlots] = useState<(string | null)[]>(() => scatter(tiles.map((t) => t.id)));
@@ -109,6 +133,13 @@ export function Istaka({
     }
     setSlots((prev) => syncSlots(prev, tiles));
   }, [tiles, dealKey]);
+
+  const arrangeSeq = useRef(arrange?.seq ?? 0);
+  useEffect(() => {
+    if (!arrange || arrange.seq === arrangeSeq.current) return;
+    arrangeSeq.current = arrange.seq;
+    setSlots(layoutSlots(arrange.groups, arrange.rest));
+  }, [arrange]);
 
   useEffect(() => {
     onLayout?.(slots);
