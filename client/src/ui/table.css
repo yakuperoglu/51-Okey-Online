@@ -921,5 +921,6 @@
   .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 22px); }
   .zone.top, .zone.right { align-content: flex-start; }
   .zone.left, .zone.bottom { align-content: flex-end; }
-  .zone-card { max-height: 100%; }
+  .zone-card { max-height: 100%; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+  .zone-card .zone-melds { flex-wrap: wrap; }
 }
