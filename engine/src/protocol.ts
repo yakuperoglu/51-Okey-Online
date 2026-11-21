@@ -13,6 +13,7 @@ export type ClientToServer =
       visibility?: RoomVisibility;
       ruleset?: Ruleset;
       pairing?: Pairing;
+      assist?: boolean;
     }
   | { type: "joinRoom"; code: string; name: string; avatarId?: string }
   | { type: "listRooms" }
@@ -23,6 +24,7 @@ export type ClientToServer =
       minPairs?: 4 | 5;
       ruleset?: Ruleset;
       pairing?: Pairing;
+      assist?: boolean;
     }
   | { type: "leaveQueue" }
   | { type: "addBot" }
@@ -50,6 +52,7 @@ export interface RoomView {
   visibility: RoomVisibility;
   ruleset: Ruleset;
   pairing: Pairing;
+  assist: boolean;
 }
 
 export interface PublicRoom {
@@ -61,6 +64,7 @@ export interface PublicRoom {
   minPairs: number;
   ruleset: Ruleset;
   pairing: Pairing;
+  assist: boolean;
 }
 
 export type ServerToClient =

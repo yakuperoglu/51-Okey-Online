@@ -85,6 +85,7 @@ export interface GameConfig {
   penalty: number;
   ruleset: "normal" | "kanli";
   pairing: "tekli" | "ciftli";
+  assist: boolean;
 }
 
 export interface GameState {
@@ -180,4 +181,5 @@ export const DEFAULT_CONFIG: GameConfig = {
   penalty: 101,
   ruleset: "kanli",
   pairing: "tekli",
+  assist: true,
 };

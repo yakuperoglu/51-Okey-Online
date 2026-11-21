@@ -33,6 +33,7 @@ interface Room {
   visibility: RoomVisibility;
   ruleset: Ruleset;
   pairing: Pairing;
+  assist: boolean;
   matchmade: boolean;
   game: GameState | null;
   botTimer?: ReturnType<typeof setTimeout>;
@@ -78,6 +79,7 @@ function view(room: Room): RoomView {
     visibility: room.visibility,
     ruleset: room.ruleset,
     pairing: room.pairing,
+    assist: room.assist,
     seats: room.seats.map((s) => ({
       id: s.id,
       name: s.name,
@@ -101,6 +103,7 @@ function publicList(): PublicRoom[] {
       minPairs: r.minPairs,
       ruleset: r.ruleset,
       pairing: r.pairing,
+      assist: r.assist,
     }));
 }
 
@@ -130,8 +133,8 @@ function emitQueue(io: Server, key: string) {
   }
 }
 
-function queueKey(ruleset: Ruleset, pairing: Pairing, minPairs: number) {
-  return `${ruleset}:${pairing}:${minPairs}`;
+function queueKey(ruleset: Ruleset, pairing: Pairing, minPairs: number, assist: boolean) {
+  return `${ruleset}:${pairing}:${minPairs}:${assist ? "a" : "u"}`;
 }
 
 function leaveQueue(io: Server, socket: import("socket.io").Socket) {
@@ -182,6 +185,7 @@ function startRoom(io: Server, room: Room) {
       minPairs: room.minPairs as 4 | 5,
       ruleset: room.ruleset,
       pairing: room.pairing,
+      assist: room.assist,
       potContribution: room.ruleset === "kanli" ? 10 : 0,
     },
   );
@@ -189,10 +193,10 @@ function startRoom(io: Server, room: Room) {
   scheduleBots(io, room);
 }
 
-function findPublicSeat(ruleset: Ruleset, pairing: Pairing, minPairs: number): Room | undefined {
+function findPublicSeat(ruleset: Ruleset, pairing: Pairing, minPairs: number, assist: boolean): Room | undefined {
   return [...rooms.values()]
     .filter((r) => r.visibility === "public" && !r.game && r.seats.length < 4)
-    .filter((r) => r.ruleset === ruleset && r.pairing === pairing && r.minPairs === minPairs)
+    .filter((r) => r.ruleset === ruleset && r.pairing === pairing && r.minPairs === minPairs && r.assist === assist)
     .sort((a, b) => b.seats.length - a.seats.length)[0];
 }
 
@@ -201,6 +205,7 @@ function makeRoom(
   ruleset: Ruleset,
   pairing: Pairing,
   minPairs: number,
+  assist: boolean,
   visibility: RoomVisibility,
   matchmade: boolean,
 ): Room {
@@ -213,6 +218,7 @@ function makeRoom(
     visibility,
     ruleset,
     pairing,
+    assist,
     matchmade,
     seats: [host],
     game: null,
@@ -304,14 +310,15 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
     const ruleset: Ruleset = payload.ruleset === "normal" ? "normal" : "kanli";
     const pairing: Pairing = payload.pairing === "ciftli" ? "ciftli" : "tekli";
     const minPairs = payload.minPairs === 5 ? 5 : 4;
-    const open = findPublicSeat(ruleset, pairing, minPairs);
+    const assist = payload.assist !== false;
+    const open = findPublicSeat(ruleset, pairing, minPairs, assist);
     if (open) {
       seatSocket(io, socket, open, name, payload.avatarId);
       emitRoom(io, open);
       if (open.matchmade && open.seats.length === 4) startRoom(io, open);
       return;
     }
-    const key = queueKey(ruleset, pairing, minPairs);
+    const key = queueKey(ruleset, pairing, minPairs, assist);
     const list = queues.get(key) ?? [];
     list.push({ socketId: socket.id, name, avatarId: payload.avatarId });
     queues.set(key, list);
@@ -337,6 +344,7 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
         ruleset,
         pairing,
         minPairs,
+        assist,
         "public",
         true,
       );
@@ -375,6 +383,7 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
       visibility: payload.visibility === "private" ? "private" : "public",
       ruleset,
       pairing,
+      assist: payload.assist !== false,
       matchmade: false,
       seats: [{ id: playerId, name, avatarId: payload.avatarId, isBot: false, connected: true, socketId: socket.id }],
       game: null,
