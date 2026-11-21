@@ -857,3 +857,68 @@
 }
 .rack-side button:disabled { opacity: 0.4; }
 .rack-side button span { font-size: clamp(8px, 1.3vh, 12px); }
+
+/* ——— meld ownership: framed per-player areas with accent colours ——— */
+.zone.bottom, .seat.bottom { --acc: #e8b93a; --acc-bg: rgba(232, 185, 58, 0.16); }
+.zone.right, .seat.right { --acc: #2fc4b2; --acc-bg: rgba(47, 196, 178, 0.16); }
+.zone.top, .seat.top { --acc: #a98af0; --acc-bg: rgba(169, 138, 240, 0.18); }
+.zone.left, .seat.left { --acc: #ff7a66; --acc-bg: rgba(255, 122, 102, 0.16); }
+.seat .av { box-shadow: 0 0 0 2px var(--acc), 0 2px 6px rgba(0, 0, 0, 0.5); }
+.seat.turn .av { box-shadow: 0 0 0 2px #ffd75e, 0 0 14px 3px rgba(255, 215, 94, 0.55); }
+.play.okey-table { --mh: clamp(24px, 7dvh, 44px); }
+.zone { overflow: visible; }
+.zone-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+  padding: 4px 6px 5px;
+  border-radius: 10px;
+  border: 1px solid var(--acc);
+  background: var(--acc-bg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+.zone-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: clamp(9px, 1.5vh, 13px);
+  line-height: 1;
+  white-space: nowrap;
+}
+.zone-head .avatar-bubble.sm { width: clamp(16px, 2.8vh, 24px); height: clamp(16px, 2.8vh, 24px); font-size: clamp(9px, 1.5vh, 13px); box-shadow: 0 0 0 1.5px var(--acc); }
+.zone-head strong { color: #fff; font-weight: 800; overflow: hidden; text-overflow: ellipsis; max-width: 9em; }
+.zone-head em { font-style: normal; font-weight: 800; color: var(--acc); }
+.zone-melds { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.meld-tile-wrap.processed { position: relative; }
+.meld-tile-wrap.processed .tile { box-shadow: 0 1px 0 #a8946a; }
+.meld-tile-wrap.processed::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: clamp(7px, 1.4vh, 11px);
+  height: clamp(7px, 1.4vh, 11px);
+  border-radius: 50%;
+  background: var(--dot, #fff);
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+.zone.mine .meld { filter: none; }
+
+/* phones: 2x2 grid, each player's melds next to their own discard corner */
+@media (max-height: 500px) {
+  .center {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "ztop pile zright"
+      "zleft pile zbot";
+  }
+  .zone { padding: 3px 4px; align-content: center; justify-content: center; }
+  .zone.top, .zone.left { padding-left: calc(var(--dh) * 0.72 + 22px); }
+  .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 22px); }
+  .zone.top, .zone.right { align-content: flex-start; }
+  .zone.left, .zone.bottom { align-content: flex-end; }
+  .zone-card { max-height: 100%; }
+}

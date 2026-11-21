@@ -1,3 +1,4 @@
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   arrangeHand,
@@ -5,6 +6,7 @@ import {
   canSwapOkey,
   COLOR_TR,
   openingHint,
+  tileFacePoints,
   validateMeld,
   type ClientGameState,
   type GameAction,
@@ -19,6 +21,12 @@ import { AvatarView } from "./Avatar";
 import "./table.css";
 
 /** Seat position by relative index: 0 = you, then counter-clockwise (next player is on your right). */
+const ACCENT: Record<string, string> = {
+  bottom: "#e8b93a",
+  right: "#2fc4b2",
+  top: "#a98af0",
+  left: "#ff7a66",
+};
 const POS = ["bottom", "right", "top", "left"] as const;
 type Pos = (typeof POS)[number];
 
@@ -38,12 +46,14 @@ function MeldView({
   highlight,
   arriving,
   arrivingTiles,
+  dotColor,
   onClick,
 }: {
   meld: TableMeld;
   highlight?: boolean;
   arriving?: boolean;
   arrivingTiles?: Set<string>;
+  dotColor?: (playerId: string) => string | undefined;
   onClick?: () => void;
 }) {
   return (
@@ -61,6 +71,7 @@ function MeldView({
           <span
             key={t.id}
             className={`meld-tile-wrap ${processed ? "processed" : ""} ${justIn ? "tile-arrive" : ""}`}
+            style={processed && who ? ({ "--dot": dotColor?.(who) } as React.CSSProperties) : undefined}
           >
             <TileView tile={t} board small />
           </span>
@@ -84,7 +95,7 @@ function Seat({
   acting?: boolean;
 }) {
   return (
-    <div className={`seat ${pos} ${active ? "turn" : ""} ${acting ? "acting" : ""} ${player.connected ? "" : "offline"}`}>
+    <div style={{ "--acc": ACCENT[pos] } as React.CSSProperties} className={`seat ${pos} ${active ? "turn" : ""} ${acting ? "acting" : ""} ${player.connected ? "" : "offline"}`}>
       <div className="av">
         {avatar}
         {pos !== "bottom" ? <b className="count-badge" title="Eldeki taş">{player.tileCount}</b> : null}
@@ -355,6 +366,10 @@ export function Table({
     setArrange((a) => ({ seq: (a?.seq ?? 0) + 1, groups: result.groups, rest: result.rest }));
   }
 
+  const dotColor = (playerId: string) => {
+    const idx = state.players.findIndex((p) => p.id === playerId);
+    return idx >= 0 ? ACCENT[POS[rel(idx, you)]] : undefined;
+  };
   const currentName = state.players[state.currentIndex]?.name ?? "";
   const status = state.isYourTurn
     ? needDraw
@@ -412,16 +427,41 @@ export function Table({
             const melds = meldsByOwner.get(p.id) ?? [];
             return (
               <div key={pos} className={`zone ${pos} ${pos === "bottom" ? "mine" : ""}`}>
-                {melds.map((m) => (
-                  <MeldView
-                    key={m.id}
-                    meld={m}
-                    arriving={arriveMelds.has(m.id)}
-                    arrivingTiles={arriveTiles}
-                    highlight={processTargets.has(m.id)}
-                    onClick={processTargets.has(m.id) ? () => process(m) : undefined}
-                  />
-                ))}
+                {melds.length ? (
+                  <div className="zone-card">
+                    <div className="zone-head">
+                      <AvatarView id={p.avatarId} size="sm" />
+                      <strong>{pos === "bottom" ? "Sen" : p.name.length > 10 ? `${p.name.slice(0, 9)}…` : p.name}</strong>
+                      <em>
+                        {p.goingPairs
+                          ? `çift: ${melds.length}`
+                          : `açtı: ${melds.reduce(
+                              (sum, m) =>
+                                sum +
+                                m.tiles.reduce(
+                                  (s, tile) =>
+                                    m.addedBy?.[tile.id] && m.addedBy[tile.id] !== m.ownerId ? s : s + tileFacePoints(tile, m.okeyAs[tile.id]),
+                                  0,
+                                ),
+                              0,
+                            )} puan`}
+                      </em>
+                    </div>
+                    <div className="zone-melds">
+                      {melds.map((m) => (
+                        <MeldView
+                          key={m.id}
+                          meld={m}
+                          arriving={arriveMelds.has(m.id)}
+                          arrivingTiles={arriveTiles}
+                          dotColor={dotColor}
+                          highlight={processTargets.has(m.id)}
+                          onClick={processTargets.has(m.id) ? () => process(m) : undefined}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             );
           })}
