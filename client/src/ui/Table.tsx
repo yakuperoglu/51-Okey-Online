@@ -32,9 +32,6 @@ function rel(index: number, you: number) {
   return (index - you + 4) % 4;
 }
 
-function pad3(n: number) {
-  return String(Math.max(0, n)).padStart(3, "0");
-}
 
 function MeldView({
   meld,
@@ -298,12 +295,6 @@ export function Table({
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   }
 
-  function addGroup() {
-    if (selected.length < 2) return;
-    setGroups((g) => [...g, selected]);
-    setSelected([]);
-  }
-
   function openHand() {
     if (!canOpenNow) return;
     if (useSeries) {
@@ -311,6 +302,12 @@ export function Table({
     } else {
       onAction({ type: "open", groups: pairGroups, goingPairs: true });
     }
+    setGroups([]);
+    setSelected([]);
+  }
+
+  function openPairs() {
+    onAction({ type: "open", groups: pairGroups, goingPairs: true });
     setGroups([]);
     setSelected([]);
   }
@@ -441,8 +438,14 @@ export function Table({
               </span>
             </div>
             <div className={`pile-item draw ${needDraw ? "glow" : ""}`}>
-              <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
-              <b className="well-label">{pad3(state.drawPileCount)}</b>
+              <div className="pile-stack" title="Çekme destesi">
+                <span className="layer l1" />
+                <span className="layer l2" />
+                <span className="layer l3" />
+                <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
+                <b className="pile-count">{state.drawPileCount}</b>
+              </div>
+              <b className="well-label">Deste</b>
             </div>
           </div>
 
@@ -466,10 +469,6 @@ export function Table({
           })}
 
         </section>
-        <div className="hint-pill">
-          <span>{status}</span>
-          {flash ? <em>{flash}</em> : null}
-        </div>
 
         {flying.map((f) => {
           const idx = state.players.findIndex((p) => p.id === f.fromId);
@@ -502,45 +501,64 @@ export function Table({
       </div>
 
       <div className="rack-row">
-        <Istaka
-          key={state.round}
-          dealKey={`${state.round}-${state.indicator.id}`}
-          tiles={state.yourHand}
-          selected={selected}
-          grouped={grouped}
-          scored={rackScore.ids}
-          onToggle={toggle}
-          canDiscard={canDiscard}
-          onDiscard={discardTile}
-          onHoverDiscard={setOverDiscard}
-          onLayout={onRackLayout}
-          arrange={arrange}
-        />
-        <div className="table-actions">
-          <button type="button" className="half" onClick={() => arrangeRack("series")}>
-            Seri diz
-          </button>
-          <button type="button" className="half" onClick={() => arrangeRack("pairs")}>
-            Çift diz
-          </button>
-          <button
-            type="button"
-            className={`primary wide ${canOpenNow ? "ready" : ""}`}
-            onClick={openHand}
-            disabled={!canOpenNow}
-            title={`Seri için en az 51 puan, çift için en az ${minPairs} çift`}
-          >
-            {openLabel}
-          </button>
-          <button type="button" className="third" onClick={addGroup} disabled={selected.length < 2}>
-            Grup
-          </button>
-          <button type="button" className="third" onClick={hint}>
-            İpucu
-          </button>
-          <button type="button" className="third" onClick={openPairsManual} disabled={!groups.length && selected.length !== 2}>
-            Çifte
-          </button>
+        <div className="open-float">
+          {canDiscard ? (
+            <button
+              type="button"
+              className={`open-btn ${canOpenNow ? "ready" : ""}`}
+              onClick={openHand}
+              disabled={!canOpenNow}
+              title={`Seri için en az 51 puan, çift için en az ${minPairs} çift`}
+            >
+              {openLabel}
+            </button>
+          ) : (
+            <span className="status-pill">{status}</span>
+          )}
+          {flash ? <em className="status-flash">{flash}</em> : null}
+        </div>
+        <div className="rack-dock">
+          <div className="rack-side left">
+            <button type="button" onClick={() => arrangeRack("series")} title="Seri diz">
+              <i aria-hidden>↻</i>
+              <span>Seri diz</span>
+            </button>
+            <button type="button" onClick={() => arrangeRack("pairs")} title="Çift diz">
+              <i aria-hidden>⇄</i>
+              <span>Çift diz</span>
+            </button>
+          </div>
+          <Istaka
+            key={state.round}
+            dealKey={`${state.round}-${state.indicator.id}`}
+            tiles={state.yourHand}
+            selected={selected}
+            grouped={grouped}
+            scored={rackScore.ids}
+            onToggle={toggle}
+            canDiscard={canDiscard}
+            onDiscard={discardTile}
+            onHoverDiscard={setOverDiscard}
+            onLayout={onRackLayout}
+            arrange={arrange}
+          />
+          <div className="rack-side right">
+            <button type="button" onClick={hint} title="İpucu">
+              <i aria-hidden>💡</i>
+              <span>İpucu</span>
+            </button>
+            {!opened ? (
+              <button
+                type="button"
+                onClick={canPairs && canDiscard ? openPairs : openPairsManual}
+                disabled={!(canPairs && canDiscard) && !groups.length && selected.length !== 2}
+                title="Çifte git"
+              >
+                <i aria-hidden>⇉</i>
+                <span>Çifte git</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
