@@ -711,3 +711,49 @@
   max-width: calc(var(--side) - var(--av) - 18px);
 }
 .seat.bottom .seat-text strong { max-width: 100%; }
+
+/* ——— large-screen scaling pass ——— */
+.play.okey-table {
+  --th: min(15dvh, 132px, calc(((100vw - var(--safe-l) - var(--safe-r) - 215px) / 13 - 2px) / 0.72));
+  --lab: clamp(10px, 1.4vh, 14px);
+}
+@media (max-height: 500px) {
+  .play.okey-table {
+    --th: min(10.5dvh, 88px, calc(((100vw - var(--safe-l) - var(--safe-r) - 196px) / 13 - 2px) / 0.72));
+  }
+}
+@media (min-width: 1100px) and (min-height: 700px) {
+  .play.okey-table {
+    --th: min(15dvh, 132px, calc(((100vw - var(--safe-l) - var(--safe-r) - 270px) / 13 - 2px) / 0.72));
+  }
+  .bottom { grid-template-columns: minmax(0, 1fr) clamp(190px, 17vw, 250px); }
+}
+.well-label { font-size: var(--lab); white-space: nowrap; line-height: 1.1; }
+.pile-cluster { gap: clamp(16px, 3.2vw, 40px); align-items: flex-start; }
+.pile-item { min-width: max-content; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.okey-line { display: flex; flex-direction: row; align-items: center; gap: 5px; }
+.hud-btn { width: clamp(26px, 4.4vh, 44px); height: clamp(26px, 4.4vh, 44px); font-size: clamp(16px, 2.6vh, 26px); }
+.hud-chip { font-size: clamp(10px, 1.8vh, 16px); padding: 3px clamp(7px, 1.2vh, 14px); }
+.seat-text strong, .seat-text em { font-size: clamp(10px, 1.7vh + 0.2vw, 17px); }
+.count-badge { min-width: clamp(17px, 2.6vh, 24px); height: clamp(17px, 2.6vh, 24px); font-size: clamp(10px, 1.6vh, 14px); }
+.actions {
+  grid-template-areas:
+    "a b"
+    "o o"
+    "g h c";
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.actions {
+  grid-template-areas:
+    "a a a b b b"
+    "o o o o o o"
+    "g g h h c c";
+}
+.actions > :nth-child(1) { grid-area: a; }
+.actions > :nth-child(2) { grid-area: b; }
+.actions > :nth-child(3) { grid-area: o; }
+.actions > :nth-child(4) { grid-area: g; }
+.actions > :nth-child(5) { grid-area: h; }
+.actions > :nth-child(6) { grid-area: c; }
+.actions .half, .actions .wide, .actions .third { grid-column: auto; }
+.actions button { width: 100%; }
