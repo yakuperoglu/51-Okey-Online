@@ -485,7 +485,7 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
   }
 }
 
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.SERVER_PORT || process.env.PORT) || 3001;
 httpServer.listen(port, () => {
   console.log(`51 Okey sunucusu http://localhost:${port}`);
 });
