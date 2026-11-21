@@ -48,3 +48,31 @@ describe("botlu tam el", () => {
     expect(state.events.length).toBeGreaterThan(0);
   });
 });
+
+describe("bot çoklu tohum", () => {
+  it("20 farklı el kilitlenmeden biter, botlar açar", () => {
+    let finished = 0;
+    let opened = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      let x = seed * 7919;
+      const rng = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
+      let state = createMatch(
+        ["a", "b", "c", "d"].map((id) => ({ id, name: id, isBot: true })),
+        {},
+        rng,
+      );
+      for (let i = 0; i < 600 && state.phase === "playing"; i++) {
+        const actor = state.players[state.currentIndex];
+        const action = pickBotAction(state);
+        expect(action, `seed ${seed} stuck`).not.toBeNull();
+        const r = applyAction(state, actor.id, action!);
+        expect(r.ok, `${seed}: ${r.error}`).toBe(true);
+        state = r.state;
+      }
+      if (state.phase === "roundEnd") finished++;
+      if (state.players.some((p) => p.opened)) opened++;
+    }
+    expect(finished).toBe(20);
+    expect(opened).toBeGreaterThan(5);
+  });
+});

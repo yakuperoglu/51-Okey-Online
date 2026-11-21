@@ -195,9 +195,12 @@ export function validateMeld(
   }
 
   const asSet = validateSet(tiles);
-  if (asSet.ok) return asSet;
-
   const asSeries = validateSeries(tiles);
+  if (asSet.ok && asSeries.ok) {
+    // Okey ambiguity (e.g. 7 + okey + okey): take the reading worth more points.
+    return asSeries.meld.points > asSet.meld.points ? asSeries : asSet;
+  }
+  if (asSet.ok) return asSet;
   if (asSeries.ok) return asSeries;
 
   return invalid(asSet.error || asSeries.error || "Geçersiz per.");

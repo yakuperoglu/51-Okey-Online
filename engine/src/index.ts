@@ -4,5 +4,6 @@ export * from "./melds.js";
 export * from "./process.js";
 export * from "./scoring.js";
 export * from "./game.js";
+export * from "./arrange.js";
 export * from "./bot.js";
 export * from "./protocol.js";

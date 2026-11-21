@@ -60,7 +60,7 @@ export function canAttach(
     // wrap serinin sağı 1 ile biter, devam yok
   } else if (rightVal < 13 && matches(color, rightVal + 1)) {
     places.push("right");
-  } else if (rightVal === 13 && matches(color, 1)) {
+  } else if (rightVal === 13 && leftVal !== 1 && matches(color, 1)) {
     places.push("right");
   }
 

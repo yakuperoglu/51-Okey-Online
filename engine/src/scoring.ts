@@ -16,13 +16,10 @@ export function loserDelta(
   config: GameConfig,
   finish: Pick<FinishInfo, "withOkey" | "withPairs">,
 ): number {
-  const okeyMul = finish.withOkey ? 2 : 1;
+  // Okey finish and pairs finish both double what everyone else pays (x4 together).
+  const okeyMul = finishMultiplier(finish.withOkey, finish.withPairs);
 
-  if (!player.opened) {
-    if (finish.withOkey && finish.withPairs) return config.penalty * 4;
-    if (finish.withOkey) return config.penalty * 2;
-    return config.penalty;
-  }
+  if (!player.opened) return config.penalty * okeyMul;
 
   const remain = player.hand.reduce((sum, t) => sum + leftoverValue(t), 0);
 
@@ -61,4 +58,12 @@ export function applyRoundScores(
   });
 
   return { players: next, finish };
+}
+
+/** Hand closed without a winner (draw pile exhausted): everyone pays their own leftovers. */
+export function applyNoWinnerScores(players: PlayerState[], config: GameConfig): PlayerState[] {
+  return players.map((p) => ({
+    ...p,
+    score: p.score + loserDelta(p, config, { withOkey: false, withPairs: false }),
+  }));
 }
