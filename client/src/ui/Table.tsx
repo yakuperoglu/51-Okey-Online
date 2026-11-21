@@ -516,7 +516,7 @@ export function Table({
           onLayout={onRackLayout}
           arrange={arrange}
         />
-        <div className="actions">
+        <div className="table-actions">
           <button type="button" className="half" onClick={() => arrangeRack("series")}>
             Seri diz
           </button>
