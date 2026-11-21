@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n server,client -c green,magenta \"npm run dev -w @okey/server\" \"npm run dev -w @okey/client\"",
-    "test": "npm run test -w @okey/engine"
+    "test": "npm run test -w @okey/engine && npm run test -w @okey/client"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

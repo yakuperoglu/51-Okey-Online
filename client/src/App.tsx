@@ -11,6 +11,7 @@ import type {
   ServerToClient,
 } from "@okey/engine";
 import { connect, send } from "./net";
+import { startLocalGame, type LocalGame } from "./local/localGame";
 import { useSocial } from "./social/useSocial";
 import { assertCanEnterTable, tableEntryCost, type TableStakeKind } from "./social/tokens";
 import { Lobby, Waiting } from "./ui/Lobby";
@@ -20,7 +21,10 @@ import { FriendsSheet } from "./ui/Friends";
 import { HelpSheet, readSoundOn, SettingsSheet } from "./ui/Settings";
 import { playCancel, playClick, playJoin, setSoundEnabled } from "./sound";
 
+const OFFLINE_MSG = "Sunucuya bağlanılamadı. Bot masasında çevrimdışı oynayabilirsin.";
+
 export default function App() {
+  const localRef = useRef<LocalGame | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const social = useSocial();
   const name = social.profile?.displayName || "misafir";
@@ -47,10 +51,7 @@ export default function App() {
   const [searching, setSearching] = useState(false);
   const [queue, setQueue] = useState<{ waiting: number; need: number } | null>(null);
 
-  useEffect(() => {
-    const socket = connect();
-    socketRef.current = socket;
-    const onMsg = (msg: ServerToClient) => {
+  const onMsg = (msg: ServerToClient) => {
       if (msg.type === "error") {
         setError(msg.message);
         return;
@@ -69,7 +70,14 @@ export default function App() {
         setSearching(msg.waiting > 0);
         setQueue({ waiting: msg.waiting, need: msg.need });
       }
-    };
+  };
+  const onMsgRef = useRef(onMsg);
+  onMsgRef.current = onMsg;
+
+  useEffect(() => {
+    const socket = connect();
+    socketRef.current = socket;
+    const onMsg = (msg: ServerToClient) => onMsgRef.current(msg);
     const refreshRooms = () => send(socket, { type: "listRooms" });
     socket.on("msg", onMsg);
     socket.on("connect", refreshRooms);
@@ -79,6 +87,50 @@ export default function App() {
       socket.off("connect", refreshRooms);
     };
   }, []);
+
+  useEffect(() => () => localRef.current?.stop(), []);
+
+  /** Resolves true when the socket is (or becomes, within a short wait) connected. */
+  function ensureOnline(): Promise<boolean> {
+    const socket = socketRef.current;
+    if (!socket) return Promise.resolve(false);
+    if (socket.connected) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const done = (ok: boolean) => {
+        clearTimeout(t);
+        socket.off("connect", onConnect);
+        resolve(ok);
+      };
+      const onConnect = () => done(true);
+      const t = setTimeout(() => done(false), 1500);
+      socket.on("connect", onConnect);
+      socket.connect();
+    });
+  }
+
+  async function withOnline(fn: () => void) {
+    if (await ensureOnline()) fn();
+    else {
+      setSearching(false);
+      setQueue(null);
+      setError(OFFLINE_MSG);
+    }
+  }
+
+  function startOffline() {
+    try {
+      gateTable("bot");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Masaya girilemedi.");
+      return;
+    }
+    playJoin();
+    setError(null);
+    localRef.current?.stop();
+    localRef.current = startLocalGame({ name: name || "Oyuncu", avatarId, minPairs, ruleset, pairing, assist }, (msg) =>
+      onMsgRef.current(msg),
+    );
+  }
 
   useEffect(() => {
     if (!pendingSolo || !room || !playerId) return;
@@ -108,8 +160,10 @@ export default function App() {
   }
 
   function create(solo = false) {
-    const socket = socketRef.current;
-    if (!socket) return;
+    if (solo) {
+      startOffline();
+      return;
+    }
     try {
       gateTable(solo ? "bot" : visibility === "private" ? "private" : "public");
     } catch (e) {
@@ -117,22 +171,21 @@ export default function App() {
       return;
     }
     playJoin();
-    setPendingSolo(solo);
-    send(socket, {
-      type: "createRoom",
-      name: name || "Oyuncu",
-      avatarId,
-      minPairs,
-      visibility: solo ? "private" : visibility,
-      ruleset,
-      pairing,
-      assist,
-    });
+    void withOnline(() =>
+      send(socketRef.current!, {
+        type: "createRoom",
+        name: name || "Oyuncu",
+        avatarId,
+        minPairs,
+        visibility,
+        ruleset,
+        pairing,
+        assist,
+      }),
+    );
   }
 
   function join(roomCode: string) {
-    const socket = socketRef.current;
-    if (!socket) return;
     try {
       gateTable("public");
     } catch (e) {
@@ -140,12 +193,12 @@ export default function App() {
       return;
     }
     playClick();
-    send(socket, { type: "joinRoom", code: roomCode, name: name || "Oyuncu", avatarId });
+    void withOnline(() =>
+      send(socketRef.current!, { type: "joinRoom", code: roomCode, name: name || "Oyuncu", avatarId }),
+    );
   }
 
   function quickPlay() {
-    const socket = socketRef.current;
-    if (!socket) return;
     try {
       gateTable("quick");
     } catch (e) {
@@ -155,15 +208,17 @@ export default function App() {
     playJoin();
     setSearching(true);
     setError(null);
-    send(socket, {
-      type: "quickPlay",
-      name: name || "Oyuncu",
-      avatarId,
-      minPairs,
-      ruleset,
-      pairing,
-      assist,
-    });
+    void withOnline(() =>
+      send(socketRef.current!, {
+        type: "quickPlay",
+        name: name || "Oyuncu",
+        avatarId,
+        minPairs,
+        ruleset,
+        pairing,
+        assist,
+      }),
+    );
   }
 
   function cancelQueue() {
@@ -176,7 +231,10 @@ export default function App() {
 
   function leaveLobby() {
     const socket = socketRef.current;
-    if (socket) {
+    if (localRef.current) {
+      localRef.current.stop();
+      localRef.current = null;
+    } else if (socket) {
       send(socket, { type: "leaveQueue" });
       send(socket, { type: "leaveRoom" });
     }
@@ -189,6 +247,10 @@ export default function App() {
   }
 
   function act(action: GameAction) {
+    if (localRef.current) {
+      localRef.current.send({ type: "gameAction", action });
+      return;
+    }
     const socket = socketRef.current;
     if (!socket) return;
     send(socket, { type: "gameAction", action });
@@ -249,7 +311,7 @@ export default function App() {
           onJoinRoom={join}
           onQuick={quickPlay}
           onCancelQueue={cancelQueue}
-          onRefresh={() => socketRef.current && send(socketRef.current, { type: "listRooms" })}
+          onRefresh={() => void withOnline(() => send(socketRef.current!, { type: "listRooms" }))}
           onOpenProfile={() => setPanel("profile")}
           onOpenFriends={() => setPanel("friends")}
           onOpenSettings={() => setPanel("settings")}
