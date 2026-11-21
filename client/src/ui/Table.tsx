@@ -438,10 +438,7 @@ export function Table({
               </span>
             </div>
             <div className={`pile-item draw ${needDraw ? "glow" : ""}`}>
-              <div className="pile-stack" title="Çekme destesi">
-                <span className="layer l1" />
-                <span className="layer l2" />
-                <span className="layer l3" />
+              <div className="pile-one" title="Çekme destesi">
                 <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
                 <b className="pile-count">{state.drawPileCount}</b>
               </div>
