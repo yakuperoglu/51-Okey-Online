@@ -501,7 +501,7 @@ export function Table({
         ) : null}
       </div>
 
-      <div className="bottom">
+      <div className="rack-row">
         <Istaka
           key={state.round}
           dealKey={`${state.round}-${state.indicator.id}`}
