@@ -188,6 +188,7 @@ export function Table({
   const prevIndex = (you + 3) % 4;
   const youPlayer = state.players[you];
   const minPairs = state.config.minPairs;
+  const assist = state.config.assist !== false;
 
   const selectedTiles = useMemo(
     () => selected.map((id) => state.yourHand.find((t) => t.id === id)).filter(Boolean) as Tile[],
@@ -219,11 +220,11 @@ export function Table({
   const pairGroups = rackScore.pairGroups;
   const canPairs = !opened && pairGroups.length >= minPairs;
   const useSeries = canSeries || !canPairs;
-  const openLabel = useSeries ? `El aç (${openingPoints})` : `El aç (${pairGroups.length} çift)`;
-  const canOpenNow = canDiscard && (canSeries || canPairs);
+  const openLabel = !assist ? "El aç" : useSeries ? `El aç (${openingPoints})` : `El aç (${pairGroups.length} çift)`;
+  const canOpenNow = canDiscard && (!assist || canSeries || canPairs);
 
   const processTargets = useMemo(() => {
-    if (selected.length !== 1) return new Set<string>();
+    if (!assist || selected.length !== 1) return new Set<string>();
     const tile = state.yourHand.find((t) => t.id === selected[0]);
     if (!tile || !youPlayer?.opened) return new Set<string>();
     const ids = new Set<string>();
@@ -231,7 +232,7 @@ export function Table({
       if (canSwapOkey(meld, tile) || canAttach(meld, tile).length) ids.add(meld.id);
     }
     return ids;
-  }, [selected, state.yourHand, state.tableMelds, youPlayer?.opened]);
+  }, [assist, selected, state.yourHand, state.tableMelds, youPlayer?.opened]);
 
   const meldsByOwner = useMemo(() => {
     const map = new Map<string, TableMeld[]>();
@@ -393,6 +394,7 @@ export function Table({
             ×
           </button>
           <span className="hud-chip">{state.round}. El</span>
+          {!assist ? <span className="hud-chip unassisted">Yardımsız</span> : null}
         </div>
         <div className="hud hud-r">
           {kanli ? (
@@ -545,7 +547,7 @@ export function Table({
               className={`open-btn ${canOpenNow ? "ready" : ""}`}
               onClick={openHand}
               disabled={!canOpenNow}
-              title={`Seri için en az 51 puan, çift için en az ${minPairs} çift`}
+              title={assist ? `Seri için en az 51 puan, çift için en az ${minPairs} çift` : "El aç"}
             >
               {openLabel}
             </button>
@@ -571,7 +573,7 @@ export function Table({
             tiles={state.yourHand}
             selected={selected}
             grouped={grouped}
-            scored={rackScore.ids}
+            scored={assist ? rackScore.ids : undefined}
             onToggle={toggle}
             canDiscard={canDiscard}
             onDiscard={discardTile}
@@ -580,15 +582,17 @@ export function Table({
             arrange={arrange}
           />
           <div className="rack-side right">
-            <button type="button" onClick={hint} title="İpucu">
-              <i aria-hidden>💡</i>
-              <span>İpucu</span>
-            </button>
+            {assist ? (
+              <button type="button" onClick={hint} title="İpucu">
+                <i aria-hidden>💡</i>
+                <span>İpucu</span>
+              </button>
+            ) : null}
             {!opened ? (
               <button
                 type="button"
-                onClick={canPairs && canDiscard ? openPairs : openPairsManual}
-                disabled={!(canPairs && canDiscard) && !groups.length && selected.length !== 2}
+                onClick={assist ? (canPairs && canDiscard ? openPairs : openPairsManual) : canDiscard ? openPairs : undefined}
+                disabled={!assist ? !canDiscard : !(canPairs && canDiscard) && !groups.length && selected.length !== 2}
                 title="Çifte git"
               >
                 <i aria-hidden>⇉</i>

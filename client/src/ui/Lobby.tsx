@@ -22,6 +22,8 @@ export function Lobby({
   setRuleset,
   pairing,
   setPairing,
+  assist,
+  setAssist,
   visibility,
   setVisibility,
   rooms,
@@ -61,6 +63,8 @@ export function Lobby({
   setRuleset: (v: Ruleset) => void;
   pairing: Pairing;
   setPairing: (v: Pairing) => void;
+  assist: boolean;
+  setAssist: (v: boolean) => void;
   visibility: RoomVisibility;
   setVisibility: (v: RoomVisibility) => void;
   rooms: PublicRoom[];
@@ -144,7 +148,7 @@ export function Lobby({
           <p className="card-kicker">{ruleset === "kanli" ? "Kanlı masa" : "Tek katlamasız"}</p>
           <h2>{rulesetLabel(ruleset)}</h2>
           <p>
-            {pairingLabel(pairing)} · {minPairs} çift
+            {pairingLabel(pairing)} · {minPairs} çift · {assist ? "Yardımlı" : "Yardımsız"}
           </p>
           <span className="live-pill">{liveCount} oyuncu masada</span>
           <div className="card-chips">
@@ -165,6 +169,12 @@ export function Lobby({
             </button>
             <button type="button" className={minPairs === 5 ? "on" : ""} onClick={() => setMinPairs(5)}>
               5 çift
+            </button>
+            <button type="button" className={assist ? "on" : ""} onClick={() => setAssist(true)}>
+              Yardımlı
+            </button>
+            <button type="button" className={!assist ? "on" : ""} onClick={() => setAssist(false)}>
+              Yardımsız
             </button>
           </div>
           {searching ? (
@@ -240,7 +250,7 @@ export function Lobby({
         ) : (
           <button type="button" className="hemen-oyna" onClick={onQuick}>
             Hemen oyna
-            <small>{rulesetLabel(ruleset)} · {pairingLabel(pairing)}</small>
+            <small>{rulesetLabel(ruleset)} · {pairingLabel(pairing)} · {assist ? "Yardımlı" : "Yardımsız"}</small>
           </button>
         )}
 
@@ -305,7 +315,7 @@ export function Lobby({
                     <div>
                       <strong>{r.hostName}</strong>
                       <p>
-                        {rulesetLabel(r.ruleset)} · {pairingLabel(r.pairing)} · {r.minPairs} çift
+                        {rulesetLabel(r.ruleset)} · {pairingLabel(r.pairing)} · {r.minPairs} çift · {r.assist ? "Yardımlı" : "Yardımsız"}
                       </p>
                     </div>
                     <span className="seats-n">{r.seats}/4</span>
@@ -346,7 +356,7 @@ export function Waiting({
         <p className="eyebrow">{room.visibility === "public" ? "Herkese açık" : "Özel oda"}</p>
         <h2>{room.code}</h2>
         <p className="muted">
-          {rulesetLabel(room.ruleset)} · {pairingLabel(room.pairing)} · {room.minPairs} çift
+          {rulesetLabel(room.ruleset)} · {pairingLabel(room.pairing)} · {room.minPairs} çift · {room.assist ? "Yardımlı" : "Yardımsız"}
           {room.visibility === "private" ? " · Kodu arkadaşlarınla paylaş" : " · Açık listede görünür"}
         </p>
         <div className="wait-felt">

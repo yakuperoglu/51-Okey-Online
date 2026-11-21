@@ -78,6 +78,7 @@
 }
 .hud-chip.pot { color: #ffe08a; border-color: rgba(255, 224, 138, 0.5); }
 .hud-chip.pot b { color: #fff; margin-left: 2px; }
+.hud-chip.unassisted { color: #ffb4a8; border-color: rgba(255, 180, 168, 0.5); }
 
 /* ——— seats ——— */
 .seat {
