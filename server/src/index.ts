@@ -310,7 +310,7 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
     const ruleset: Ruleset = payload.ruleset === "normal" ? "normal" : "kanli";
     const pairing: Pairing = payload.pairing === "ciftli" ? "ciftli" : "tekli";
     const minPairs = payload.minPairs === 5 ? 5 : 4;
-    const assist = payload.assist !== false;
+    const assist = false; // every table is unassisted
     const open = findPublicSeat(ruleset, pairing, minPairs, assist);
     if (open) {
       seatSocket(io, socket, open, name, payload.avatarId);
@@ -383,7 +383,7 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
       visibility: payload.visibility === "private" ? "private" : "public",
       ruleset,
       pairing,
-      assist: payload.assist !== false,
+      assist: false,
       matchmade: false,
       seats: [{ id: playerId, name, avatarId: payload.avatarId, isBot: false, connected: true, socketId: socket.id }],
       game: null,

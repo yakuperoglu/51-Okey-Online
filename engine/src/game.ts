@@ -128,6 +128,7 @@ export function createMatch(
     ...DEFAULT_CONFIG,
     ...config,
     ruleset,
+    assist: false, // all tables are unassisted
     pairing: config.pairing ?? DEFAULT_CONFIG.pairing,
     potContribution: config.potContribution ?? (ruleset === "kanli" ? 10 : 0),
   };

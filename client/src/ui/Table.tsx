@@ -1,18 +1,14 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  arrangeHand,
   canAttach,
   canSwapOkey,
-  openingHint,
   tileFacePoints,
-  validateMeld,
   type ClientGameState,
   type GameAction,
   type OkeyIdentity,
   type PublicPlayer,
   type TableMeld,
-  type Tile,
 } from "@okey/engine";
 import { Istaka } from "./Istaka";
 import { scoreRack } from "./rackScore";
@@ -45,14 +41,12 @@ function rel(index: number, you: number) {
 
 function MeldView({
   meld,
-  highlight,
   arriving,
   arrivingTiles,
   dotColor,
   onClick,
 }: {
   meld: TableMeld;
-  highlight?: boolean;
   arriving?: boolean;
   arrivingTiles?: Set<string>;
   dotColor?: (playerId: string) => string | undefined;
@@ -61,7 +55,7 @@ function MeldView({
   return (
     <button
       type="button"
-      className={`meld ${meld.type} ${highlight ? "hot" : ""} ${arriving ? "arrive" : ""}`}
+      className={`meld ${meld.type} ${arriving ? "arrive" : ""}`}
       onClick={onClick}
       disabled={!onClick}
     >
@@ -169,7 +163,6 @@ export function Table({
   flash: string | null;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
-  const [groups, setGroups] = useState<string[][]>([]);
   const [sheet, setSheet] = useState(false);
   const [rackSlots, setRackSlots] = useState<(string | null)[]>([]);
   const [overDiscard, setOverDiscard] = useState(false);
@@ -178,7 +171,6 @@ export function Table({
   const [arriveTiles, setArriveTiles] = useState<Set<string>>(new Set());
   const [actingId, setActingId] = useState<string | null>(null);
   const [flippedState, setFlippedState] = useState<{ round: number; ids: Set<string> }>({ round: state.round, ids: new Set() });
-  const [arrange, setArrange] = useState<{ seq: number; groups: string[][]; rest: string[] } | null>(null);
   const prevMelds = useRef<TableMeld[] | null>(null);
   const baseScores = useRef<Map<string, number>>(new Map());
   const onRackLayout = useCallback((slots: (string | null)[]) => setRackSlots(slots), []);
@@ -193,7 +185,6 @@ export function Table({
   const prevIndex = (you + 3) % 4;
   const youPlayer = state.players[you];
   const minPairs = state.config.minPairs;
-  const assist = state.config.assist !== false;
 
   // Okeys stay face-natural until the player double-clicks them; reset every round.
   const flipped = flippedState.round === state.round ? flippedState.ids : EMPTY_IDS;
@@ -207,49 +198,17 @@ export function Table({
     [state.round],
   );
 
-  const selectedTiles = useMemo(
-    () => selected.map((id) => state.yourHand.find((t) => t.id === id)).filter(Boolean) as Tile[],
-    [selected, state.yourHand],
-  );
-
-  const preview = selectedTiles.length >= 2 ? validateMeld(selectedTiles, false) : null;
-  const grouped = useMemo(() => new Set(groups.flat()), [groups]);
-  const pendingPoints = groups.reduce((sum, g) => {
-    const tiles = g.map((id) => state.yourHand.find((t) => t.id === id)).filter(Boolean) as Tile[];
-    const v = validateMeld(tiles, false);
-    return sum + (v.ok ? v.meld.points : 0);
-  }, preview?.ok ? preview.meld.points : 0);
-
   const rackScore = useMemo(() => scoreRack(rackSlots, state.yourHand), [rackSlots, state.yourHand]);
   const canDiscard = state.isYourTurn && !needDraw && state.phase === "playing";
 
-  // "El aç": contiguous blocks on the rack are melds (rackScore), manual groups / selection are the fallback.
-  const openingGroups = groups.length
-    ? groups
-    : rackScore.groups.length
-      ? rackScore.groups
-      : selected.length >= 3
-        ? [selected]
-        : [];
-  const openingPoints = groups.length ? pendingPoints : rackScore.points;
+  // "El aç": contiguous blocks on the rack are melds; a selection of 3+ tiles is the fallback.
+  const openingGroups = rackScore.groups.length ? rackScore.groups : selected.length >= 3 ? [selected] : [];
   const opened = Boolean(youPlayer?.opened);
-  const canSeries = openingGroups.length > 0 && (opened || openingPoints >= 51);
+  const canSeries = openingGroups.length > 0 && (opened || rackScore.points >= 51);
   const pairGroups = rackScore.pairGroups;
   const canPairs = !opened && pairGroups.length >= minPairs;
   const useSeries = canSeries || !canPairs;
-  const openLabel = !assist ? "El aç" : useSeries ? `El aç (${openingPoints})` : `El aç (${pairGroups.length} çift)`;
-  const canOpenNow = canDiscard && (!assist || canSeries || canPairs);
-
-  const processTargets = useMemo(() => {
-    if (!assist || selected.length !== 1) return new Set<string>();
-    const tile = state.yourHand.find((t) => t.id === selected[0]);
-    if (!tile || !youPlayer?.opened) return new Set<string>();
-    const ids = new Set<string>();
-    for (const meld of state.tableMelds) {
-      if (canSwapOkey(meld, tile) || canAttach(meld, tile).length) ids.add(meld.id);
-    }
-    return ids;
-  }, [assist, selected, state.yourHand, state.tableMelds, youPlayer?.opened]);
+  const canOpenNow = canDiscard;
 
   const meldsByOwner = useMemo(() => {
     const map = new Map<string, TableMeld[]>();
@@ -331,22 +290,11 @@ export function Table({
     } else {
       onAction({ type: "open", groups: pairGroups, goingPairs: true });
     }
-    setGroups([]);
     setSelected([]);
   }
 
   function openPairs() {
     onAction({ type: "open", groups: pairGroups, goingPairs: true });
-    setGroups([]);
-    setSelected([]);
-  }
-
-  /** Legacy fallback: explicitly open the grouped / selected tiles as pairs. */
-  function openPairsManual() {
-    const payload = groups.length ? groups : selected.length === 2 ? [selected] : [];
-    if (!payload.length) return;
-    onAction({ type: "open", groups: payload, goingPairs: true });
-    setGroups([]);
     setSelected([]);
   }
 
@@ -357,7 +305,7 @@ export function Table({
   }
 
   function process(meld: TableMeld) {
-    if (selected.length !== 1) return;
+    if (selected.length !== 1 || !opened) return;
     const tile = state.yourHand.find((t) => t.id === selected[0]);
     if (!tile) return;
     if (canSwapOkey(meld, tile)) {
@@ -368,20 +316,6 @@ export function Table({
       onAction({ type: "process", tileId: tile.id, meldId: meld.id, place });
     }
     setSelected([]);
-  }
-
-  function hint() {
-    const h = openingHint(state.yourHand, minPairs);
-    if (!h) return;
-    setGroups(h.groups);
-    setSelected([]);
-  }
-
-  function arrangeRack(mode: "series" | "pairs") {
-    const result = arrangeHand(state.yourHand, mode);
-    setGroups([]);
-    setSelected([]);
-    setArrange((a) => ({ seq: (a?.seq ?? 0) + 1, groups: result.groups, rest: result.rest }));
   }
 
   const dotColor = (playerId: string) => {
@@ -411,7 +345,6 @@ export function Table({
             ×
           </button>
           <span className="hud-chip">{state.round}. El</span>
-          {!assist ? <span className="hud-chip unassisted">Yardımsız</span> : null}
         </div>
         <div className="hud hud-r">
           {kanli ? (
@@ -474,8 +407,7 @@ export function Table({
                           arriving={arriveMelds.has(m.id)}
                           arrivingTiles={arriveTiles}
                           dotColor={dotColor}
-                          highlight={processTargets.has(m.id)}
-                          onClick={processTargets.has(m.id) ? () => process(m) : undefined}
+                          onClick={opened && selected.length === 1 ? () => process(m) : undefined}
                         />
                       ))}
                     </div>
@@ -533,21 +465,6 @@ export function Table({
           );
         })}
 
-        {groups.length ? (
-          <div className="pending">
-            {groups.map((g, i) => (
-              <div key={i} className="pending-group">
-                {g.map((id) => {
-                  const tile = state.yourHand.find((t) => t.id === id);
-                  return tile ? <TileView key={id} tile={tile} board small concealAs={flipped.has(id) ? undefined : state.okey} /> : null;
-                })}
-              </div>
-            ))}
-            <button type="button" className="mini-btn" onClick={() => setGroups([])}>
-              Sil
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <div className="rack-row">
@@ -558,9 +475,9 @@ export function Table({
               className={`open-btn ${canOpenNow ? "ready" : ""}`}
               onClick={openHand}
               disabled={!canOpenNow}
-              title={assist ? `Seri için en az 51 puan, çift için en az ${minPairs} çift` : "El aç"}
+              title="El aç"
             >
-              {openLabel}
+              El aç
             </button>
           ) : (
             <span className="status-pill">{status}</span>
@@ -568,45 +485,26 @@ export function Table({
           {flash ? <em className="status-flash">{flash}</em> : null}
         </div>
         <div className="rack-dock">
-          <div className="rack-side left">
-            <button type="button" onClick={() => arrangeRack("series")} title="Seri diz">
-              <i aria-hidden>↻</i>
-              <span>Seri diz</span>
-            </button>
-            <button type="button" onClick={() => arrangeRack("pairs")} title="Çift diz">
-              <i aria-hidden>⇄</i>
-              <span>Çift diz</span>
-            </button>
-          </div>
           <Istaka
             key={state.round}
             dealKey={`${state.round}-${state.indicator.id}`}
             tiles={state.yourHand}
             selected={selected}
-            grouped={grouped}
-            scored={assist ? rackScore.ids : undefined}
             onToggle={toggle}
             canDiscard={canDiscard}
             onDiscard={discardTile}
             onHoverDiscard={setOverDiscard}
             onLayout={onRackLayout}
-            arrange={arrange}
             okey={state.okey}
             flipped={flipped}
             onFlip={flipTile}
           />
           <div className="rack-side right">
-            {assist ? (
-              <button type="button" onClick={hint} title="İpucu">
-                <i aria-hidden>💡</i>
-                <span>İpucu</span>
-              </button>
-            ) : null}
             {!opened ? (
               <button
                 type="button"
-                onClick={assist ? (canPairs && canDiscard ? openPairs : openPairsManual) : canDiscard ? openPairs : undefined}
-                disabled={!assist ? !canDiscard : !(canPairs && canDiscard) && !groups.length && selected.length !== 2}
+                onClick={canDiscard ? openPairs : undefined}
+                disabled={!canDiscard}
                 title="Çifte git"
               >
                 <i aria-hidden>⇉</i>

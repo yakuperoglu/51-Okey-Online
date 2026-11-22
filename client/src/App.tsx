@@ -36,7 +36,6 @@ export default function App() {
   const [minPairs, setMinPairs] = useState<4 | 5>(4);
   const [ruleset, setRuleset] = useState<Ruleset>("normal");
   const [pairing, setPairing] = useState<Pairing>("tekli");
-  const [assist, setAssist] = useState(true);
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomView | null>(null);
@@ -127,7 +126,7 @@ export default function App() {
     playJoin();
     setError(null);
     localRef.current?.stop();
-    localRef.current = startLocalGame({ name: name || "Oyuncu", avatarId, minPairs, ruleset, pairing, assist }, (msg) =>
+    localRef.current = startLocalGame({ name: name || "Oyuncu", avatarId, minPairs, ruleset, pairing }, (msg) =>
       onMsgRef.current(msg),
     );
   }
@@ -180,7 +179,6 @@ export default function App() {
         visibility,
         ruleset,
         pairing,
-        assist,
       }),
     );
   }
@@ -216,7 +214,6 @@ export default function App() {
         minPairs,
         ruleset,
         pairing,
-        assist,
       }),
     );
   }
@@ -288,8 +285,6 @@ export default function App() {
           setRuleset={setRuleset}
           pairing={pairing}
           setPairing={setPairing}
-          assist={assist}
-          setAssist={setAssist}
           visibility={visibility}
           setVisibility={setVisibility}
           rooms={rooms}

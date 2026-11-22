@@ -181,5 +181,5 @@ export const DEFAULT_CONFIG: GameConfig = {
   penalty: 101,
   ruleset: "kanli",
   pairing: "tekli",
-  assist: true,
+  assist: false,
 };

@@ -280,8 +280,8 @@ describe("oyun akışı", () => {
 
 describe("assist config", () => {
   const seats = [0, 1, 2, 3].map((i) => ({ id: `p${i}`, name: `P${i}`, isBot: false }));
-  it("defaults to assisted and keeps an explicit unassisted flag", () => {
-    expect(createMatch(seats).config.assist).toBe(true);
-    expect(createMatch(seats, { assist: false }).config.assist).toBe(false);
+  it("is always unassisted, even when asked otherwise", () => {
+    expect(createMatch(seats).config.assist).toBe(false);
+    expect(createMatch(seats, { assist: true }).config.assist).toBe(false);
   });
 });

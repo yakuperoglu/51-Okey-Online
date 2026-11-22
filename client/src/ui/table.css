@@ -78,7 +78,6 @@
 }
 .hud-chip.pot { color: #ffe08a; border-color: rgba(255, 224, 138, 0.5); }
 .hud-chip.pot b { color: #fff; margin-left: 2px; }
-.hud-chip.unassisted { color: #ffb4a8; border-color: rgba(255, 180, 168, 0.5); }
 
 /* ——— seats ——— */
 .seat {
@@ -218,15 +217,6 @@
   min-width: 0;
   flex: 0 0 auto;
 }
-.meld.hot {
-  outline: 2px solid #ffe08a;
-  outline-offset: 0;
-  background: rgba(255, 224, 138, 0.22);
-  animation: hot-pulse 1s ease-in-out infinite;
-}
-@keyframes hot-pulse {
-  50% { background: rgba(255, 224, 138, 0.4); }
-}
 .meld:disabled { opacity: 1; }
 .meld-tile-wrap { display: block; }
 .meld-tile-wrap.processed .tile { box-shadow: 0 0 0 1.5px #7dd3ff, 0 1px 0 #a8946a; }
@@ -313,30 +303,6 @@
   box-shadow: 0 0 16px 3px rgba(125, 255, 154, 0.6);
 }
 
-.pending {
-  position: absolute;
-  left: calc(var(--side) + 70px);
-  bottom: 4px;
-  z-index: 7;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  --th: var(--mh);
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: 8px;
-  padding: 3px 6px;
-  max-width: calc(100% - var(--side) * 2 - 140px);
-  overflow-x: auto;
-}
-.pending-group { display: flex; gap: 0; }
-.mini-btn {
-  border: 0;
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 11px;
-  background: #7a1e28;
-  color: #fff;
-}
 
 /* fly chips */
 .fly-chip {
@@ -529,14 +495,6 @@
     0 calc(var(--th) * 0.3) calc(var(--th) * 0.15) rgba(0, 0, 0, 0.5);
   z-index: 3;
 }
-.istaka-slot.in-per .tile {
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 0 0 2px #7dff9a,
-    0 calc(var(--th) * 0.045) 0 #cdbb8d,
-    0 calc(var(--th) * 0.09) 0 #a8946a,
-    0 calc(var(--th) * 0.14) calc(var(--th) * 0.1) rgba(0, 0, 0, 0.45);
-}
 .tile-ghost {
   position: fixed;
   z-index: 80;
@@ -689,7 +647,6 @@
   border: 1px solid #4a2a12;
   box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.45), 0 3px 0 #3b2110;
 }
-.rack-side.left { border-radius: 10px 0 0 6px; border-right: 0; }
 .rack-side.right { border-radius: 0 10px 6px 0; border-left: 0; }
 .rack-side button {
   flex: 1 1 0;

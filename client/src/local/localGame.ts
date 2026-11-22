@@ -26,7 +26,6 @@ export interface LocalGameOptions {
   minPairs?: 4 | 5;
   ruleset?: Ruleset;
   pairing?: Pairing;
-  assist?: boolean;
   /** Delay before each bot step in ms. Default: random 600-1200. */
   botDelay?: () => number;
   rng?: () => number;
@@ -48,7 +47,7 @@ export function startLocalGame(opts: LocalGameOptions, emit: (msg: ServerToClien
   const ruleset: Ruleset = opts.ruleset === "kanli" ? "kanli" : "normal";
   const pairing: Pairing = opts.pairing === "ciftli" ? "ciftli" : "tekli";
   const minPairs: 4 | 5 = opts.minPairs === 5 ? 5 : 4;
-  const assist = opts.assist !== false;
+  const assist = false; // every table is unassisted
   const playerId = `local-${(++counter).toString(36)}-${Math.floor(rng() * 1e6).toString(36)}`;
   const humanName = opts.name.trim().slice(0, 16) || "Oyuncu";
 
