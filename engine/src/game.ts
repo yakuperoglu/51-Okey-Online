@@ -164,16 +164,7 @@ export function createMatch(
     meldSeq: 0,
     eventSeq: 0,
   };
-  pushEvent(
-    state,
-    `El ${state.round} başladı. Gösterge ${describeTile(state.indicator)}, okey ${describeTile({
-      id: "ok",
-      color: state.okey.color,
-      value: state.okey.value,
-      kind: "normal",
-    })}.`,
-    "info",
-  );
+  pushEvent(state, `El ${state.round} başladı.`, "info");
   pushEvent(state, `İlk sıra: ${players[starterIndex].name} (15 taş).`, "info");
   return state;
 }
@@ -193,11 +184,7 @@ function startNextRound(state: GameState, rng: () => number): GameState {
   next.okey = dealt.okey;
   next.drawPile = dealt.drawPile;
   next.pot += next.config.potContribution * 4;
-  pushEvent(
-    next,
-    `El ${next.round} başladı. Gösterge ${describeTile(next.indicator)}. Çanak: ${next.pot}.`,
-    "info",
-  );
+  pushEvent(next, `El ${next.round} başladı. Çanak: ${next.pot}.`, "info");
   return next;
 }
 

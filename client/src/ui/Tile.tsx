@@ -58,7 +58,7 @@ export function TileView({
       </span>
     </span>
   );
-  const title = wild ? "Okey" : fake ? "Sahte okey" : `${tile.value}`;
+  const title = fake && !wild ? "Sahte okey" : `${tile.value}`;
 
   if (rack || !onClick) {
     return (

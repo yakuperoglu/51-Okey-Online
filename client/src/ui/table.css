@@ -251,8 +251,6 @@
   z-index: 2;
   --th: calc(var(--dh) * 1.15);
 }
-.okey-line { display: flex; align-items: center; gap: 4px; }
-.okey-mini { --mh: calc(var(--dh) * 0.5); display: inline-flex; }
 .pile-item { display: grid; justify-items: center; gap: 3px; }
 .well-label {
   font-size: 10px;
@@ -656,7 +654,6 @@
 .well-label { font-size: var(--lab); white-space: nowrap; line-height: 1.1; }
 .pile-cluster { gap: clamp(16px, 3.2vw, 40px); align-items: flex-start; }
 .pile-item { min-width: max-content; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.okey-line { display: flex; flex-direction: row; align-items: center; gap: 5px; }
 .hud-btn { width: clamp(26px, 4.4vh, 44px); height: clamp(26px, 4.4vh, 44px); font-size: clamp(16px, 2.6vh, 26px); }
 .hud-chip { font-size: clamp(10px, 1.8vh, 16px); padding: 3px clamp(7px, 1.2vh, 14px); }
 .seat-text strong, .seat-text em { font-size: clamp(10px, 1.7vh + 0.2vw, 17px); }

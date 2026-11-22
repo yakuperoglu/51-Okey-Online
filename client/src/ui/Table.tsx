@@ -4,7 +4,6 @@ import {
   arrangeHand,
   canAttach,
   canSwapOkey,
-  COLOR_TR,
   openingHint,
   tileFacePoints,
   validateMeld,
@@ -469,15 +468,8 @@ export function Table({
           })}
 
           <div className="pile-cluster">
-            <div className="pile-item" title={`Okey: ${COLOR_TR[state.okey.color]} ${state.okey.value}`}>
+            <div className="pile-item">
               <TileView tile={state.indicator} />
-              <b className="well-label">Gösterge</b>
-              <span className="okey-line">
-                <b className="well-label">Okey</b>
-                <span className="okey-mini">
-                  <TileView tile={{ id: "okey-face", color: state.okey.color, value: state.okey.value, kind: "normal" }} small />
-                </span>
-              </span>
             </div>
             <div className={`pile-item draw ${needDraw ? "glow" : ""}`}>
               <div className="pile-one" title="Çekme destesi">
