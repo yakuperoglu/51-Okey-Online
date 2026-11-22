@@ -886,7 +886,7 @@
   --rack-pad: 14px;
   --th: min(12.5dvh, 96px);
   --tw: min(
-    calc(var(--th) * 1),
+    calc(var(--th) * 1.45),
     calc((100vw - var(--safe-l) - var(--safe-r) - var(--rack-pad) - var(--th) * 0.32 - 28px) / 13)
   );
   --shelf: calc(var(--th) * 0.06);
@@ -954,3 +954,9 @@
   .zone.top, .zone.left { padding-left: calc(var(--dh) * 0.72 + 18px); }
   .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 18px); }
 }
+
+/* rack spans the whole row width: slots stretch to fill it */
+.rack-row { width: 100%; box-sizing: border-box; padding-left: calc(8px); padding-right: 8px; }
+.rack-dock { width: 100%; }
+.istaka { width: 100%; }
+.istaka-wood { box-sizing: border-box; max-width: 100%; }
