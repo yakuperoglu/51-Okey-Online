@@ -82,6 +82,37 @@ function toTableMeld(ownerId: string, meld: ValidatedMeld, id: string): TableMel
   };
 }
 
+function placedValue(tile: Tile, okeyAs: Record<string, { value: number }> | undefined): number {
+  if (tile.kind === "wildOkey") return okeyAs?.[tile.id]?.value ?? tile.value;
+  return tile.value;
+}
+
+/** House penalty: tile face value x 10 added straight to the target's score. */
+function addHousePenalty(
+  state: GameState,
+  target: PlayerState,
+  amount: number,
+  label: string,
+  text: string,
+): void {
+  target.score += amount;
+  target.lastPenalty = label;
+  pushEvent(state, text, "penalty");
+}
+
+/** Rule 2: the taken discard was actually used, so the previous player pays value x 10. */
+function penalizeTakenUse(state: GameState, user: PlayerState, value: number): void {
+  const prev = state.players[prevIndex(state)];
+  const amount = value * 10;
+  addHousePenalty(
+    state,
+    prev,
+    amount,
+    "Taşı kullanıldı",
+    `${prev.name} ceza: +${amount} (${user.name} attığı taşı kullandı).`,
+  );
+}
+
 function dealHands(
   players: PlayerState[],
   starterIndex: number,
@@ -285,7 +316,15 @@ function applyOpen(state: GameState, action: Extract<GameAction, { type: "open" 
   player.hand = sortHand(player.hand);
 
   if (state.turn.mustUseTileId && used.includes(state.turn.mustUseTileId)) {
+    const takenId = state.turn.mustUseTileId;
     state.turn.mustUseTileId = null;
+    for (const m of validated) {
+      const tile = m.tiles.find((x) => x.id === takenId);
+      if (tile) {
+        penalizeTakenUse(state, player, placedValue(tile, m.okeyAs));
+        break;
+      }
+    }
   }
 
   if (firstOpen && goingPairs) {
@@ -336,7 +375,23 @@ function applyProcess(
     pushEvent(state, `${player.name} ${describeTile(tile)} taşını işledi.`, "process");
   }
 
-  if (state.turn.mustUseTileId === tile.id) state.turn.mustUseTileId = null;
+  const value = placedValue(tile, result.meld.okeyAs);
+  if (meld.ownerId !== player.id) {
+    const owner = state.players.find((p) => p.id === meld.ownerId);
+    if (owner) {
+      addHousePenalty(
+        state,
+        owner,
+        value * 10,
+        "İşlek cezası",
+        `${owner.name} işlek cezası: +${value * 10} (${player.name} işledi).`,
+      );
+    }
+  }
+  if (state.turn.mustUseTileId === tile.id) {
+    state.turn.mustUseTileId = null;
+    penalizeTakenUse(state, player, value);
+  }
   if (player.hand.length === 0) endRound(state, player, null);
   return ok(state);
 }
