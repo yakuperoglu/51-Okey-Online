@@ -878,3 +878,11 @@
   .zone-card { max-height: 100%; min-height: 0; overflow-y: auto; scrollbar-width: none; }
   .zone-card .zone-melds { flex-wrap: wrap; }
 }
+
+/* drag-to-draw sources must not scroll the page on touch */
+.pile-one .tile.back.clickable,
+.discard-spot.takeable .top-tile {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}

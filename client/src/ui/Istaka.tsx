@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent } from "react";
 import type { OkeyIdentity, Tile } from "@okey/engine";
 import { TileView } from "./Tile";
 
@@ -25,13 +25,19 @@ function scatter(ids: string[]): (string | null)[] {
   return slots;
 }
 
-function syncSlots(prev: (string | null)[], tiles: Tile[]): (string | null)[] {
+function syncSlots(prev: (string | null)[], tiles: Tile[], prefer: number | null = null): (string | null)[] {
   const live = new Set(tiles.map((t) => t.id));
   const next = prev.map((id) => (id && live.has(id) ? id : null));
   const placed = new Set(next.filter(Boolean) as string[]);
   const missing = tiles.filter((t) => !placed.has(t.id)).map((t) => t.id);
   const empty = next.map((id, i) => (id ? -1 : i)).filter((i) => i >= 0);
   const spots = shuffle(empty);
+  if (prefer !== null && missing.length && spots.length) {
+    // A tile drawn by drag lands on (or as near as possible to) the slot it was dropped on.
+    let best = 0;
+    for (let i = 1; i < spots.length; i++) if (Math.abs(spots[i] - prefer) < Math.abs(spots[best] - prefer)) best = i;
+    [spots[0], spots[best]] = [spots[best], spots[0]];
+  }
   missing.forEach((id, i) => {
     if (spots[i] !== undefined) next[spots[i]] = id;
   });
@@ -67,6 +73,7 @@ export function Istaka({
   okey,
   flipped,
   onFlip,
+  placeRef,
 }: {
   tiles: Tile[];
   selected: string[];
@@ -80,6 +87,8 @@ export function Istaka({
   okey: OkeyIdentity;
   flipped: Set<string>;
   onFlip: (tileId: string) => void;
+  /** Slot where the next newly arriving tile should land (set by dragging from the deck / discard). */
+  placeRef?: MutableRefObject<number | null>;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [slots, setSlots] = useState<(string | null)[]>(() => scatter(tiles.map((t) => t.id)));
@@ -111,7 +120,9 @@ export function Istaka({
       setSlots(scatter(tiles.map((t) => t.id)));
       return;
     }
-    setSlots((prev) => syncSlots(prev, tiles));
+    const prefer = placeRef?.current ?? null;
+    setSlots((prev) => syncSlots(prev, tiles, prefer));
+    if (placeRef && tiles.some((t) => !slotsRef.current.includes(t.id))) placeRef.current = null;
   }, [tiles, dealKey]);
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import type { PointerEvent } from "react";
 import type { OkeyIdentity, Tile } from "@okey/engine";
 
 const COLOR_CLASS: Record<Tile["color"], string> = {
@@ -82,9 +83,21 @@ export function TileView({
   );
 }
 
-export function TileBack({ onClick, count }: { onClick?: () => void; count?: number }) {
+export function TileBack({
+  onClick,
+  onPointerDown,
+  count,
+}: {
+  onClick?: () => void;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
+  count?: number;
+}) {
   return (
-    <button type="button" className={`tile back ${onClick ? "clickable" : ""}`} onClick={onClick} disabled={!onClick}>
+    <button type="button" className={`tile back ${onClick ? "clickable" : ""}`}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      disabled={!onClick}
+    >
       <span className="tile-face">
         <span className="back-mark" />
       </span>

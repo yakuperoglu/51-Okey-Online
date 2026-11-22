@@ -111,6 +111,7 @@ function DiscardSpot({
   droppable,
   hot,
   onTake,
+  onTakeDragStart,
   onTap,
   okey,
 }: {
@@ -121,6 +122,7 @@ function DiscardSpot({
   droppable?: boolean;
   hot?: boolean;
   onTake?: () => void;
+  onTakeDragStart?: (event: React.PointerEvent) => void;
   onTap?: () => void;
 }) {
   const pile = owner?.discard ?? [];
@@ -139,7 +141,7 @@ function DiscardSpot({
         </span>
       ) : null}
       {last ? (
-        <span className="top-tile">
+        <span className="top-tile" onPointerDown={takeable ? onTakeDragStart : undefined}>
           <TileView tile={last} onClick={takeable ? onTake : undefined} concealAs={okey} />
         </span>
       ) : (
@@ -170,6 +172,9 @@ export function Table({
   const [arriveMelds, setArriveMelds] = useState<Set<string>>(new Set());
   const [arriveTiles, setArriveTiles] = useState<Set<string>>(new Set());
   const [actingId, setActingId] = useState<string | null>(null);
+  const [takeDrag, setTakeDrag] = useState<{ kind: "pile" | "discard"; x: number; y: number } | null>(null);
+  const suppressClick = useRef(false);
+  const placeRef = useRef<number | null>(null);
   const [flippedState, setFlippedState] = useState<{ round: number; ids: Set<string> }>({ round: state.round, ids: new Set() });
   const prevMelds = useRef<TableMeld[] | null>(null);
   const baseScores = useRef<Map<string, number>>(new Map());
@@ -278,6 +283,43 @@ export function Table({
       setActingId((cur) => (cur === actor ? null : cur));
     }, 900);
   }, [state.tableMelds]);
+
+  /** Draw by dragging the deck / the previous discard onto the rack (also works on touch). */
+  function startTakeDrag(event: React.PointerEvent, kind: "pile" | "discard") {
+    if (!needDraw || event.button > 0) return;
+    const sx = event.clientX;
+    const sy = event.clientY;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) moved = true;
+      if (moved) setTakeDrag({ kind, x: ev.clientX, y: ev.clientY });
+    };
+    const finish = (ev: PointerEvent, drop: boolean) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      setTakeDrag(null);
+      if (!moved) return; // a plain tap: the click handler draws
+      suppressClick.current = true;
+      window.setTimeout(() => {
+        suppressClick.current = false;
+      }, 60);
+      if (!drop) return;
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (!el?.closest(".istaka")) return;
+      const slot = Number(el.closest("[data-slot]")?.getAttribute("data-slot"));
+      placeRef.current = Number.isInteger(slot) ? slot : null;
+      window.setTimeout(() => {
+        placeRef.current = null;
+      }, 2500);
+      onAction({ type: kind === "pile" ? "drawPile" : "drawDiscard" });
+    };
+    const up = (ev: PointerEvent) => finish(ev, true);
+    const cancel = (ev: PointerEvent) => finish(ev, false);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+  }
 
   function toggle(id: string) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -423,7 +465,10 @@ export function Table({
             </div>
             <div className={`pile-item draw ${needDraw ? "glow" : ""}`}>
               <div className="pile-one" title="Çekme destesi">
-                <TileBack onClick={needDraw ? () => onAction({ type: "drawPile" }) : undefined} />
+                <TileBack
+                  onClick={needDraw ? () => !suppressClick.current && onAction({ type: "drawPile" }) : undefined}
+                  onPointerDown={needDraw ? (e) => startTakeDrag(e, "pile") : undefined}
+                />
                 <b className="pile-count">{state.drawPileCount}</b>
               </div>
               <b className="well-label">Deste</b>
@@ -444,7 +489,8 @@ export function Table({
                 takeable={takeable}
                 droppable={isMine && canDiscard}
                 hot={isMine && overDiscard}
-                onTake={takeable ? () => onAction({ type: "drawDiscard" }) : undefined}
+                onTake={takeable ? () => !suppressClick.current && onAction({ type: "drawDiscard" }) : undefined}
+                onTakeDragStart={takeable ? (e) => startTakeDrag(e, "discard") : undefined}
                 onTap={isMine && canDiscard && selected.length === 1 ? () => discardTile(selected[0]) : undefined}
               />
             );
@@ -498,6 +544,7 @@ export function Table({
             okey={state.okey}
             flipped={flipped}
             onFlip={flipTile}
+            placeRef={placeRef}
           />
           <div className="rack-side right">
             {!opened ? (
@@ -514,6 +561,19 @@ export function Table({
           </div>
         </div>
       </div>
+
+      {takeDrag ? (
+        <div className="tile-ghost lifted" style={{ left: takeDrag.x, top: takeDrag.y }}>
+          {takeDrag.kind === "pile" ? (
+            <TileBack />
+          ) : (
+            (() => {
+              const top = state.players[prevIndex]?.discard.slice(-1)[0];
+              return top ? <TileView tile={top} concealAs={state.okey} /> : <TileBack />;
+            })()
+          )}
+        </div>
+      ) : null}
 
       {state.phase === "roundEnd" ? (
         <div className="modal-wrap">
