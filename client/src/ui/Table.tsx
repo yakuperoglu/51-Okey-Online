@@ -9,6 +9,7 @@ import {
   validateMeld,
   type ClientGameState,
   type GameAction,
+  type OkeyIdentity,
   type PublicPlayer,
   type TableMeld,
   type Tile,
@@ -34,6 +35,8 @@ type FlyChip = {
   fromId: string;
   kind: "open" | "process";
 };
+
+const EMPTY_IDS: Set<string> = new Set();
 
 function rel(index: number, you: number) {
   return (index - you + 4) % 4;
@@ -115,8 +118,10 @@ function DiscardSpot({
   hot,
   onTake,
   onTap,
+  okey,
 }: {
   pos: Pos;
+  okey: OkeyIdentity;
   owner: PublicPlayer | undefined;
   takeable?: boolean;
   droppable?: boolean;
@@ -136,12 +141,12 @@ function DiscardSpot({
     >
       {under ? (
         <span className="under">
-          <TileView tile={under} small />
+          <TileView tile={under} small concealAs={okey} />
         </span>
       ) : null}
       {last ? (
         <span className="top-tile">
-          <TileView tile={last} onClick={takeable ? onTake : undefined} />
+          <TileView tile={last} onClick={takeable ? onTake : undefined} concealAs={okey} />
         </span>
       ) : (
         <em className="spot-empty">{pos === "bottom" ? "At" : ""}</em>
@@ -172,6 +177,7 @@ export function Table({
   const [arriveMelds, setArriveMelds] = useState<Set<string>>(new Set());
   const [arriveTiles, setArriveTiles] = useState<Set<string>>(new Set());
   const [actingId, setActingId] = useState<string | null>(null);
+  const [flippedState, setFlippedState] = useState<{ round: number; ids: Set<string> }>({ round: state.round, ids: new Set() });
   const [arrange, setArrange] = useState<{ seq: number; groups: string[][]; rest: string[] } | null>(null);
   const prevMelds = useRef<TableMeld[] | null>(null);
   const baseScores = useRef<Map<string, number>>(new Map());
@@ -188,6 +194,18 @@ export function Table({
   const youPlayer = state.players[you];
   const minPairs = state.config.minPairs;
   const assist = state.config.assist !== false;
+
+  // Okeys stay face-natural until the player double-clicks them; reset every round.
+  const flipped = flippedState.round === state.round ? flippedState.ids : EMPTY_IDS;
+  const flipTile = useCallback(
+    (id: string) =>
+      setFlippedState((cur) => {
+        const ids = new Set(cur.round === state.round ? cur.ids : []);
+        if (!ids.delete(id)) ids.add(id);
+        return { round: state.round, ids };
+      }),
+    [state.round],
+  );
 
   const selectedTiles = useMemo(
     () => selected.map((id) => state.yourHand.find((t) => t.id === id)).filter(Boolean) as Tile[],
@@ -490,6 +508,7 @@ export function Table({
                 key={pos}
                 pos={pos}
                 owner={p}
+                okey={state.okey}
                 takeable={takeable}
                 droppable={isMine && canDiscard}
                 hot={isMine && overDiscard}
@@ -520,7 +539,7 @@ export function Table({
               <div key={i} className="pending-group">
                 {g.map((id) => {
                   const tile = state.yourHand.find((t) => t.id === id);
-                  return tile ? <TileView key={id} tile={tile} board small /> : null;
+                  return tile ? <TileView key={id} tile={tile} board small concealAs={flipped.has(id) ? undefined : state.okey} /> : null;
                 })}
               </div>
             ))}
@@ -572,6 +591,9 @@ export function Table({
             onHoverDiscard={setOverDiscard}
             onLayout={onRackLayout}
             arrange={arrange}
+            okey={state.okey}
+            flipped={flipped}
+            onFlip={flipTile}
           />
           <div className="rack-side right">
             {assist ? (

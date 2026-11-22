@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import type { Tile } from "@okey/engine";
+import type { OkeyIdentity, Tile } from "@okey/engine";
 import { TileView } from "./Tile";
 
 export const RACK_COLS = 13;
@@ -88,6 +88,9 @@ export function Istaka({
   onHoverDiscard,
   onLayout,
   arrange,
+  okey,
+  flipped,
+  onFlip,
 }: {
   tiles: Tile[];
   selected: string[];
@@ -101,6 +104,10 @@ export function Istaka({
   onLayout?: (slots: (string | null)[]) => void;
   /** Bump `seq` to re-lay the rack: groups contiguous, rest after. */
   arrange?: { seq: number; groups: string[][]; rest: string[] } | null;
+  /** Natural face of the okey. An unflipped okey looks like a plain tile of this face. */
+  okey: OkeyIdentity;
+  flipped: Set<string>;
+  onFlip: (tileId: string) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [slots, setSlots] = useState<(string | null)[]>(() => scatter(tiles.map((t) => t.id)));
@@ -113,6 +120,7 @@ export function Istaka({
   const [hoverSlot, setHoverSlot] = useState<number | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const dealRef = useRef(dealKey);
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
 
   function clearDwell() {
     if (dwell.current) {
@@ -221,7 +229,18 @@ export function Istaka({
       commitMove(d.id, dropSlot);
       return;
     }
-    if (d && !d.moved) onToggle(d.id);
+    if (d && !d.moved) {
+      onToggle(d.id);
+      // Double click / double tap flips a real okey; identical (silent) for every other tile.
+      const now = Date.now();
+      const prev = lastTap.current;
+      if (prev && prev.id === d.id && now - prev.at < 380) {
+        lastTap.current = null;
+        if (byId.get(d.id)?.kind === "wildOkey") onFlip(d.id);
+      } else {
+        lastTap.current = { id: d.id, at: now };
+      }
+    }
   }
 
   function renderRow(row: (string | null)[], offset: number) {
@@ -255,6 +274,7 @@ export function Istaka({
                     selected={selected.includes(tile.id)}
                     dim={grouped.has(tile.id)}
                     rack
+                    concealAs={flipped.has(tile.id) ? undefined : okey}
                   />
                 ) : null}
               </div>
@@ -273,7 +293,7 @@ export function Istaka({
       </div>
       {dragTile && ghost ? (
         <div className={`tile-ghost ${drag.current?.moved ? "lifted" : "pickup"}`} style={{ left: ghost.x, top: ghost.y }}>
-          <TileView tile={dragTile} rack />
+          <TileView tile={dragTile} rack concealAs={flipped.has(dragTile.id) ? undefined : okey} />
         </div>
       ) : null}
     </div>

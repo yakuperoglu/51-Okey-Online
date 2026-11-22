@@ -1,4 +1,4 @@
-import type { Tile } from "@okey/engine";
+import type { OkeyIdentity, Tile } from "@okey/engine";
 
 const COLOR_CLASS: Record<Tile["color"], string> = {
   yellow: "c-yellow",
@@ -11,13 +11,14 @@ const HEART = "M12 21S3.2 15.2 1.6 9.7C.4 5.7 3.4 3 6.8 3c2.1 0 3.6 1.1 5.2 3.2C
 const STAR = "M12 1.8l2.9 6.7 7.3.7-5.5 4.8 1.6 7.1L12 17.4l-6.3 3.7 1.6-7.1L1.8 9.2l7.3-.7z";
 
 export function TileView({
-  tile,
+  tile: rawTile,
   selected,
   dim,
   onClick,
   small,
   rack,
   board,
+  concealAs,
 }: {
   tile: Tile;
   selected?: boolean;
@@ -26,7 +27,13 @@ export function TileView({
   small?: boolean;
   rack?: boolean;
   board?: boolean;
+  /** Show a real okey as its natural face (no star) - the player has to recognise it themselves. */
+  concealAs?: OkeyIdentity;
 }) {
+  const tile: Tile =
+    concealAs && rawTile.kind === "wildOkey"
+      ? { ...rawTile, color: concealAs.color, value: concealAs.value, kind: "normal" }
+      : rawTile;
   const wild = tile.kind === "wildOkey";
   const fake = tile.kind === "fakeOkey" || Boolean(tile.wasFakeOkey);
   const className = [
