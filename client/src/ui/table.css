@@ -386,14 +386,9 @@
 .tile .num, .tile .suit { color: inherit; }
 .tile.fake .suit-well { filter: none; }
 .tile.fake { background: linear-gradient(180deg, #fffdf4 0%, #f1e4c4 100%); }
-.tile.fake::after {
-  content: "";
-  position: absolute;
-  inset: 8%;
-  border: 1.5px dashed rgba(60, 40, 10, 0.35);
-  border-radius: calc(var(--th) * 0.08);
-  pointer-events: none;
-}
+.tile.fake .tile-face { justify-content: center; }
+.tile.fake .suit-well { width: calc(var(--th) * 0.34); height: calc(var(--th) * 0.34); }
+.tile.fake .suit { color: #2a2a2a; }
 .tile.wild { background: linear-gradient(180deg, #fffbe6 0%, #ffeaa0 100%); }
 .tile.wild::after {
   content: "";

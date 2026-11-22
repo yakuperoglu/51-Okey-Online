@@ -39,7 +39,7 @@ export function TileView({
   const fake = tile.kind === "fakeOkey" || Boolean(tile.wasFakeOkey);
   const className = [
     "tile",
-    COLOR_CLASS[tile.color],
+    fake && !wild ? "c-black" : COLOR_CLASS[tile.color],
     wild ? "wild" : "",
     fake && !wild ? "fake" : "",
     selected ? "selected" : "",
@@ -56,17 +56,17 @@ export function TileView({
         <svg className="joker-star" viewBox="0 0 24 24" aria-hidden>
           <path d={STAR} />
         </svg>
-      ) : (
+      ) : fake ? null : (
         <span className="num">{tile.value}</span>
       )}
       <span className="suit-well" aria-hidden>
         <svg className="suit" viewBox="0 0 24 24">
-          {fake && !wild ? <circle cx="12" cy="12" r="7" /> : <path d={wild ? STAR : HEART} />}
+          {fake && !wild ? <circle cx="12" cy="12" r="6" /> : <path d={wild ? STAR : HEART} />}
         </svg>
       </span>
     </span>
   );
-  const title = fake && !wild ? "Sahte okey" : `${tile.value}`;
+  const title = fake && !wild ? undefined : `${tile.value}`;
 
   if (rack || !onClick) {
     return (
