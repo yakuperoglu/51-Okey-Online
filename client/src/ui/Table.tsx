@@ -110,6 +110,7 @@ function DiscardSpot({
   takeable,
   droppable,
   hot,
+  returnDrop,
   onTake,
   onTakeDragStart,
   onTap,
@@ -121,6 +122,8 @@ function DiscardSpot({
   takeable?: boolean;
   droppable?: boolean;
   hot?: boolean;
+  /** Marks the previous player's pile as the place a taken-but-unused tile can be put back. */
+  returnDrop?: boolean;
   onTake?: () => void;
   onTakeDragStart?: (event: React.PointerEvent) => void;
   onTap?: () => void;
@@ -132,6 +135,7 @@ function DiscardSpot({
     <div
       className={`discard-spot ${pos} ${takeable ? "takeable" : ""} ${droppable ? "droppable" : ""} ${hot ? "hot" : ""}`}
       {...(pos === "bottom" ? { "data-discard-drop": "" } : {})}
+      {...(returnDrop ? { "data-return-drop": "" } : {})}
       title={pos === "bottom" ? "Taşı buraya bırakarak at" : undefined}
       onClick={onTap}
     >
@@ -168,6 +172,7 @@ export function Table({
   const [sheet, setSheet] = useState(false);
   const [rackSlots, setRackSlots] = useState<(string | null)[]>([]);
   const [overDiscard, setOverDiscard] = useState(false);
+  const [overReturn, setOverReturn] = useState(false);
   const [flying, setFlying] = useState<FlyChip[]>([]);
   const [arriveMelds, setArriveMelds] = useState<Set<string>>(new Set());
   const [arriveTiles, setArriveTiles] = useState<Set<string>>(new Set());
@@ -204,6 +209,10 @@ export function Table({
   );
 
   const rackScore = useMemo(() => scoreRack(rackSlots, state.yourHand), [rackSlots, state.yourHand]);
+  const returnTileId =
+    state.isYourTurn && state.phase === "playing" && state.turn.tookDiscard && state.turn.mustUseTileId && state.yourHand.some((t) => t.id === state.turn.mustUseTileId)
+      ? state.turn.mustUseTileId
+      : null;
   const canDiscard = state.isYourTurn && !needDraw && state.phase === "playing";
 
   // "El aç": contiguous blocks on the rack are melds; a selection of 3+ tiles is the fallback.
@@ -337,6 +346,12 @@ export function Table({
 
   function openPairs() {
     onAction({ type: "open", groups: pairGroups, goingPairs: true });
+    setSelected([]);
+  }
+
+  function returnDiscard() {
+    if (!returnTileId) return;
+    onAction({ type: "returnDiscard" });
     setSelected([]);
   }
 
@@ -488,7 +503,8 @@ export function Table({
                 okey={state.okey}
                 takeable={takeable}
                 droppable={isMine && canDiscard}
-                hot={isMine && overDiscard}
+                hot={(isMine && overDiscard) || (idx === prevIndex && overReturn)}
+                returnDrop={idx === prevIndex && Boolean(returnTileId)}
                 onTake={takeable ? () => !suppressClick.current && onAction({ type: "drawDiscard" }) : undefined}
                 onTakeDragStart={takeable ? (e) => startTakeDrag(e, "discard") : undefined}
                 onTap={isMine && canDiscard && selected.length === 1 ? () => discardTile(selected[0]) : undefined}
@@ -515,6 +531,11 @@ export function Table({
 
       <div className="rack-row">
         <div className="open-float">
+          {returnTileId ? (
+            <button type="button" className="open-btn ready return-btn" onClick={returnDiscard}>
+              Geri koy
+            </button>
+          ) : null}
           {canDiscard ? (
             <button
               type="button"
@@ -540,6 +561,9 @@ export function Table({
             canDiscard={canDiscard}
             onDiscard={discardTile}
             onHoverDiscard={setOverDiscard}
+            returnTileId={returnTileId}
+            onReturn={returnDiscard}
+            onHoverReturn={setOverReturn}
             onLayout={onRackLayout}
             okey={state.okey}
             flipped={flipped}

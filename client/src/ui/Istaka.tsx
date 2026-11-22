@@ -69,6 +69,9 @@ export function Istaka({
   canDiscard,
   onDiscard,
   onHoverDiscard,
+  returnTileId,
+  onReturn,
+  onHoverReturn,
   onLayout,
   okey,
   flipped,
@@ -82,6 +85,10 @@ export function Istaka({
   canDiscard?: boolean;
   onDiscard?: (tileId: string) => void;
   onHoverDiscard?: (over: boolean) => void;
+  /** The taken-but-unused discard may be dragged back onto the previous player's pile. */
+  returnTileId?: string | null;
+  onReturn?: () => void;
+  onHoverReturn?: (over: boolean) => void;
   onLayout?: (slots: (string | null)[]) => void;
   /** Natural face of the okey. An unflipped okey looks like a plain tile of this face. */
   okey: OkeyIdentity;
@@ -153,7 +160,10 @@ export function Istaka({
     if (!d.moved) return;
     const overDiscard = Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-discard-drop]"));
     onHoverDiscard?.(overDiscard);
-    if (overDiscard) {
+    const overReturn =
+      d.id === returnTileId && Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-return-drop]"));
+    onHoverReturn?.(overReturn);
+    if (overDiscard || overReturn) {
       clearDwell();
       hoverRef.current = null;
       setHoverSlot(null);
@@ -191,12 +201,19 @@ export function Istaka({
     drag.current = null;
     clearDwell();
     const overDiscard = Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-discard-drop]"));
+    const overReturn =
+      d?.id === returnTileId && Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-return-drop]"));
     const dropSlot = hoverRef.current ?? slotFromPoint(event.clientX, event.clientY);
     setDragging(null);
     setGhost(null);
     setHoverSlot(null);
     hoverRef.current = null;
     onHoverDiscard?.(false);
+    onHoverReturn?.(false);
+    if (d?.moved && overReturn) {
+      onReturn?.();
+      return;
+    }
     if (d?.moved && overDiscard && canDiscard) {
       onDiscard?.(d.id);
       return;
