@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   canAttach,
   canSwapOkey,
@@ -234,6 +234,35 @@ export function Table({
     return map;
   }, [state.tableMelds]);
 
+  // Meld area must show every meld without scrolling: shrink meld tiles until all four zones fit.
+  const centerRef = useRef<HTMLElement | null>(null);
+  const [centerBox, setCenterBox] = useState("");
+  const meldSig = state.tableMelds.map((m) => `${m.id}:${m.tiles.length}`).join(",");
+  useEffect(() => {
+    const el = centerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setCenterBox(`${el.clientWidth}x${el.clientHeight}`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    const el = centerRef.current;
+    if (!el) return;
+    const zones = Array.from(el.querySelectorAll<HTMLElement>(".zone"));
+    const fits = () => zones.every((z) => z.scrollHeight <= z.clientHeight + 1 && z.scrollWidth <= z.clientWidth + 1);
+    let hi = Math.max(26, Math.min(56, Math.round(window.innerHeight * 0.075)));
+    let lo = 11;
+    el.style.setProperty("--mh", `${hi}px`);
+    if (fits()) return;
+    while (hi - lo > 0.5) {
+      const mid = (hi + lo) / 2;
+      el.style.setProperty("--mh", `${mid}px`);
+      if (fits()) lo = mid;
+      else hi = mid;
+    }
+    el.style.setProperty("--mh", `${lo}px`);
+  }, [meldSig, centerBox, state.players.length, state.phase]);
+
   useEffect(() => {
     const prev = prevMelds.current;
     prevMelds.current = state.tableMelds;
@@ -428,7 +457,7 @@ export function Table({
           );
         })}
 
-        <section className="center">
+        <section className="center" ref={centerRef}>
           {POS.map((pos) => {
             const idx = (you + POS.indexOf(pos)) % 4;
             const p = state.players[idx];
@@ -570,19 +599,18 @@ export function Table({
             onFlip={flipTile}
             placeRef={placeRef}
           />
-          <div className="rack-side right">
-            {!opened ? (
-              <button
-                type="button"
-                onClick={canDiscard ? openPairs : undefined}
-                disabled={!canDiscard}
-                title="Çifte git"
-              >
-                <i aria-hidden>⇉</i>
-                <span>Çifte git</span>
-              </button>
-            ) : null}
-          </div>
+          {!opened ? (
+            <button
+              type="button"
+              className="pairs-fab"
+              onClick={canDiscard ? openPairs : undefined}
+              disabled={!canDiscard}
+              title="Çifte git"
+            >
+              <i aria-hidden>⇉</i>
+              <span>Çifte git</span>
+            </button>
+          ) : null}
         </div>
       </div>
 

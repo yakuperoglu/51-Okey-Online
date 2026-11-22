@@ -870,7 +870,6 @@
   .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 22px); }
   .zone.top, .zone.right { align-content: flex-start; }
   .zone.left, .zone.bottom { align-content: flex-end; }
-  .zone-card { max-height: 100%; min-height: 0; overflow-y: auto; scrollbar-width: none; }
   .zone-card .zone-melds { flex-wrap: wrap; }
 }
 
@@ -880,4 +879,78 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* ——— wide rack (almost full width, shorter) + compact meld area ——— */
+.play.okey-table {
+  --rack-pad: 14px;
+  --th: min(12.5dvh, 96px);
+  --tw: min(
+    calc(var(--th) * 1),
+    calc((100vw - var(--safe-l) - var(--safe-r) - var(--rack-pad) - var(--th) * 0.32 - 28px) / 13)
+  );
+  --shelf: calc(var(--th) * 0.06);
+}
+.rack-row { padding: 0 calc(var(--rack-pad) / 2) max(3px, var(--safe-b)); }
+.rack-dock { position: relative; max-width: 100%; }
+.istaka-wood { padding: calc(var(--th) * 0.1) calc(var(--th) * 0.16) calc(var(--th) * 0.08); }
+.istaka-rail + .istaka-rail { margin-top: calc(var(--th) * 0.05); }
+.istaka-groove { gap: 2px; }
+.tile.rack, .istaka-slot .tile { border-radius: calc(var(--th) * 0.12); }
+
+/* "Çifte git": small round-ended button floating above the rack's right end */
+.pairs-fab {
+  position: absolute;
+  right: 2px;
+  bottom: 100%;
+  margin-bottom: 3px;
+  z-index: 9;
+  height: clamp(26px, 5vh, 40px);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 clamp(10px, 1.6vw, 18px) 0 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: linear-gradient(180deg, #5b4a3a, #2e1f14);
+  color: #f6e7c8;
+  font-size: clamp(11px, 1.7vh + 0.2vw, 16px);
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+}
+.pairs-fab i {
+  font-style: normal;
+  width: calc(clamp(26px, 5vh, 40px) - 8px);
+  height: calc(clamp(26px, 5vh, 40px) - 8px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #4b4b4b, #1f1f1f);
+  color: #fff;
+}
+.pairs-fab:disabled { opacity: 0.45; }
+.pairs-fab:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+
+/* meld area: no scrolling, header inline with the melds, tile size is fitted by Table.tsx (--mh on .center) */
+.center { margin-bottom: calc(clamp(26px, 5vh, 40px) + 5px); }
+.zone { overflow: visible; }
+.zone-card {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 3px 4px;
+  padding: 3px 4px;
+  max-height: none;
+  overflow: visible;
+  border-radius: 8px;
+}
+.zone-card .zone-melds { display: contents; }
+.zone-head { gap: 4px; padding-right: 2px; }
+.meld { padding: 1px; border-radius: 4px; }
+@media (max-height: 500px) {
+  .zone { padding: 2px 3px; }
+  .zone.top, .zone.left { padding-left: calc(var(--dh) * 0.72 + 18px); }
+  .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 18px); }
 }
