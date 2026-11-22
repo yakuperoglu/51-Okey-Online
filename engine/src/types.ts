@@ -122,6 +122,8 @@ export type GameAction =
       place: "left" | "right" | "append" | "swapOkey";
     }
   | { type: "discard"; tileId: string }
+  /** Put the just-taken, still unused discard back on the previous player's pile and draw again. */
+  | { type: "returnDiscard" }
   | { type: "nextRound" };
 
 export interface ActionResult {

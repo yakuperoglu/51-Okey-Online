@@ -38,7 +38,7 @@ describe("kural düzeltmeleri", () => {
     if (r.ok) expect(r.meld.points).toBe(24); // 7-8-9 seri, eşli 21 değil
   });
 
-  it("kullanamayacağı yer taşını almak reddedilir (kilitlenme yok)", () => {
+  it("kullanamayacağı yer taşı da alınabilir (geri bırakma ile)", () => {
     const s = fresh();
     const cur = s.currentIndex;
     const next = (cur + 1) % 4;
@@ -46,9 +46,62 @@ describe("kural düzeltmeleri", () => {
     s.players[cur].discard = [t("junk", "yellow", 13)];
     s.turn = { hasDrawn: false, mustUseTileId: null, tookDiscard: false };
     s.currentIndex = next;
-    expect(legalDraw(s, s.players[next].id).discard).toBe(false);
+    expect(legalDraw(s, s.players[next].id).discard).toBe(true);
     const r = applyAction(s, s.players[next].id, { type: "drawDiscard" });
-    expect(r.ok).toBe(false);
+    expect(r.ok).toBe(true);
+    expect(r.state.players[next].hand.some((h) => h.id === "junk")).toBe(true);
+    expect(r.state.turn).toEqual({ hasDrawn: true, mustUseTileId: "junk", tookDiscard: true });
+  });
+
+  it("returnDiscard taşı yere geri koyar ve sırayı sıfırlar", () => {
+    const s = fresh();
+    const cur = s.currentIndex;
+    const next = (cur + 1) % 4;
+    s.players[next].hand = [t("h1", "red", 1), t("h2", "blue", 9), t("h3", "black", 4)];
+    s.players[cur].discard = [t("old", "red", 2), t("junk", "yellow", 13)];
+    s.turn = { hasDrawn: false, mustUseTileId: null, tookDiscard: false };
+    s.currentIndex = next;
+    const id = s.players[next].id;
+    const took = applyAction(s, id, { type: "drawDiscard" });
+    expect(took.ok).toBe(true);
+    const back = applyAction(took.state, id, { type: "returnDiscard" });
+    expect(back.ok).toBe(true);
+    expect(back.state.players[cur].discard.map((d) => d.id)).toEqual(["old", "junk"]);
+    expect(back.state.players[next].hand.map((h) => h.id).sort()).toEqual(["h1", "h2", "h3"]);
+    expect(back.state.turn).toEqual({ hasDrawn: false, mustUseTileId: null, tookDiscard: false });
+    expect(back.state.currentIndex).toBe(next);
+    // must draw again: from the pile
+    expect(applyAction(back.state, id, { type: "drawPile" }).ok).toBe(true);
+  });
+
+  it("returnDiscard: taş alınmadıysa reddedilir", () => {
+    const s = fresh();
+    const p = s.players[s.currentIndex];
+    s.turn = { hasDrawn: true, mustUseTileId: null, tookDiscard: false };
+    expect(applyAction(s, p.id, { type: "returnDiscard" }).ok).toBe(false);
+    s.turn = { hasDrawn: false, mustUseTileId: null, tookDiscard: false };
+    expect(applyAction(s, p.id, { type: "returnDiscard" }).ok).toBe(false);
+  });
+
+  it("returnDiscard: taş kullanıldıktan sonra reddedilir", () => {
+    const s = fresh();
+    const cur = s.currentIndex;
+    const next = (cur + 1) % 4;
+    const id = s.players[next].id;
+    s.players[next].hand = [t("a", "red", 5), t("b", "red", 6), t("c", "red", 7), t("x", "blue", 1)];
+    s.players[next].opened = true;
+    s.tableMelds = [
+      { id: "m1", type: "series", ownerId: "z", color: "red", values: [1, 2, 3], wrap: false, okeyAs: {}, tiles: [t("r1", "red", 1), t("r2", "red", 2), t("r3", "red", 3)] },
+    ];
+    s.players[cur].discard = [t("r4", "red", 4)];
+    s.turn = { hasDrawn: false, mustUseTileId: null, tookDiscard: false };
+    s.currentIndex = next;
+    const took = applyAction(s, id, { type: "drawDiscard" });
+    expect(took.ok).toBe(true);
+    const used = applyAction(took.state, id, { type: "process", tileId: "r4", meldId: "m1", place: "right" });
+    expect(used.ok).toBe(true);
+    expect(used.state.turn.mustUseTileId).toBeNull();
+    expect(applyAction(used.state, id, { type: "returnDiscard" }).ok).toBe(false);
   });
 
   it("açmış oyuncu eli tamamen bitirirse atmadan el biter", () => {

@@ -1,5 +1,4 @@
-import { applyAttach, canSwapOkey, isPlayableOnTable } from "./process.js";
-import { bestPairArrangement, canFormMeldWith, findOpeningGroups, findPairGroups } from "./arrange.js";
+import { applyAttach, isPlayableOnTable } from "./process.js";
 import { validateMeld } from "./melds.js";
 import { applyNoWinnerScores, applyRoundScores } from "./scoring.js";
 import {
@@ -202,27 +201,6 @@ function sortHand(hand: Tile[]): Tile[] {
     if (a.color !== b.color) return order[a.color] - order[b.color];
     return a.value - b.value;
   });
-}
-
-/** A tile taken from the discard pile must be usable this turn, otherwise the player would be stuck. */
-function canUseTakenTile(state: GameState, player: PlayerState, tile: Tile): boolean {
-  const trial = [...player.hand, tile];
-  if (!player.opened) {
-    return (
-      !!findOpeningGroups(trial, tile.id) || !!findPairGroups(trial, state.config.minPairs, tile.id)
-    );
-  }
-  if (player.goingPairs) {
-    return (
-      state.tableMelds.some((m) => canSwapOkey(m, tile)) ||
-      bestPairArrangement(trial, tile.id).groups.some((g) => g.includes(tile.id))
-    );
-  }
-  return (
-    isPlayableOnTable(state.tableMelds, tile) ||
-    state.tableMelds.some((m) => canSwapOkey(m, tile)) ||
-    canFormMeldWith(trial, tile.id)
-  );
 }
 
 function applyOpen(state: GameState, action: Extract<GameAction, { type: "open" }>): ActionResult {
@@ -472,9 +450,6 @@ export function applyAction(
     const prev = next.players[prevIndex(next)];
     const tile = prev.discard[prev.discard.length - 1];
     if (!tile) return fail(next, "Yerde alınacak taş yok.");
-    if (!canUseTakenTile(next, player, tile)) {
-      return fail(next, "Bu taşı bu elde kullanamayacağın için yerden alamazsın.");
-    }
 
     prev.discard = prev.discard.slice(0, -1);
     player.hand.push(tile);
@@ -483,6 +458,18 @@ export function applyAction(
     next.turn.tookDiscard = true;
     next.turn.mustUseTileId = tile.id;
     pushEvent(next, `${player.name} yerden ${describeTile(tile)} aldı.`, "info");
+    return ok(next);
+  }
+
+  if (action.type === "returnDiscard") {
+    const tileId = next.turn.mustUseTileId;
+    if (!next.turn.tookDiscard || !tileId) return fail(next, "Geri bırakılacak bir taş yok.");
+    const tile = player.hand.find((t) => t.id === tileId);
+    if (!tile) return fail(next, "Bu taş artık ıstakanda değil.");
+    removeFromHand(player, [tile.id]);
+    next.players[prevIndex(next)].discard.push(tile);
+    next.turn = { hasDrawn: false, mustUseTileId: null, tookDiscard: false };
+    pushEvent(next, `${player.name} taşı yere geri bıraktı.`, "info");
     return ok(next);
   }
 
@@ -541,6 +528,6 @@ export function legalDraw(state: GameState, playerId: string): { pile: boolean; 
   const top = prev.discard[prev.discard.length - 1];
   return {
     pile: true,
-    discard: !!top && canUseTakenTile(state, p, top),
+    discard: !!top,
   };
 }
