@@ -250,7 +250,7 @@ export function Table({
     if (!el) return;
     const zones = Array.from(el.querySelectorAll<HTMLElement>(".zone"));
     const fits = () => zones.every((z) => z.scrollHeight <= z.clientHeight + 1 && z.scrollWidth <= z.clientWidth + 1);
-    let hi = Math.max(26, Math.min(56, Math.round(window.innerHeight * 0.075)));
+    let hi = Math.max(26, Math.min(56, Math.round(window.innerHeight * 0.09)));
     let lo = 11;
     el.style.setProperty("--mh", `${hi}px`);
     if (fits()) return;

@@ -42,10 +42,11 @@
   min-height: 0;
   display: grid;
   grid-template-columns: var(--side) minmax(0, 1fr) var(--side);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
-    "hl top hr"
-    "left center right";
+    "hud hud hud"
+    "tl center tr"
+    "bl center br";
 }
 .hud {
   display: flex;
@@ -54,8 +55,8 @@
   padding: 4px 6px;
   z-index: 8;
 }
-.hud-l { grid-area: hl; align-self: start; justify-self: start; }
-.hud-r { grid-area: hr; align-self: start; justify-self: end; flex-direction: row-reverse; }
+.hud-l { grid-area: hud; align-self: start; justify-self: start; }
+.hud-r { grid-area: hud; align-self: start; justify-self: end; flex-direction: row-reverse; }
 .hud-btn {
   width: 30px;
   height: 30px;
@@ -90,10 +91,6 @@
   min-width: 0;
   pointer-events: none;
 }
-.seat.top { grid-area: top; justify-self: center; flex-direction: row; gap: 8px; z-index: 5; align-self: start; margin-top: -2px; }
-.seat.left { grid-area: left; align-self: start; padding-top: 4px; }
-.seat.right { grid-area: right; align-self: start; padding-top: 4px; }
-.seat.bottom { grid-area: left; align-self: end; padding-bottom: 4px; }
 .seat.offline { opacity: 0.55; }
 .av {
   position: relative;
@@ -168,42 +165,7 @@
   50% { box-shadow: 0 0 0 2px #ffd75e, 0 0 18px 5px rgba(255, 215, 94, 0.7); }
 }
 
-/* ——— center area ——— */
-.center {
-  grid-area: center;
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-areas:
-    "ztop ztop ztop"
-    "zleft pile zright"
-    "zbot zbot zbot";
-  margin: 2px 0 22px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.1) 80%);
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
-}
-.zone {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  align-items: center;
-  justify-content: center;
-  gap: 4px 8px;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  padding: 3px calc(var(--dh) * 0.72 + 14px);
-  --th: var(--mh);
-}
-.zone.top { grid-area: ztop; align-content: center; padding-top: 4px; }
-.zone.bottom { grid-area: zbot; align-content: center; padding-bottom: 4px; }
-.zone.left { grid-area: zleft; padding: 3px 4px; align-content: center; }
-.zone.right { grid-area: zright; padding: 3px 4px; align-content: center; }
+/* ——— center area: see "corner seats" section at the end ——— */
 .zone.mine .meld { filter: drop-shadow(0 0 3px rgba(255, 224, 138, 0.35)); }
 
 .meld {
@@ -264,7 +226,7 @@
 
 /* discard spots: each player's pile sits on their right-hand corner */
 .discard-spot {
-  position: absolute;
+  position: relative;
   z-index: 3;
   --th: var(--dh);
   width: calc(var(--dh) * 0.72 + 14px);
@@ -275,10 +237,6 @@
   border: 1.5px dashed rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.16);
 }
-.discard-spot.top { top: 6px; left: 8px; }
-.discard-spot.right { top: 6px; right: 8px; }
-.discard-spot.left { bottom: 6px; left: 8px; }
-.discard-spot.bottom { bottom: 6px; right: 8px; }
 .discard-spot .under {
   position: absolute;
   --th: calc(var(--dh) * 0.9);
@@ -325,10 +283,11 @@
 .fly-chip .avatar-bubble.sm { width: 24px; height: 24px; font-size: 13px; }
 .fly-chip b { font-size: 12px; }
 .fly-chip span { font-size: 12px; color: #ffe08a; font-weight: 700; }
-.fly-chip.from-left { --sx: -160px; --sy: 0px; }
-.fly-chip.from-right { --sx: 160px; --sy: 0px; }
-.fly-chip.from-top { --sx: 0px; --sy: -90px; }
-.fly-chip.from-bottom { --sx: 0px; --sy: 90px; }
+/* seats sit in the corners: previous = top-left, opposite = top-right, next = bottom-right, me = bottom-left */
+.fly-chip.from-left { --sx: -28vw; --sy: -16dvh; }
+.fly-chip.from-top { --sx: 28vw; --sy: -16dvh; }
+.fly-chip.from-right { --sx: 28vw; --sy: 14dvh; }
+.fly-chip.from-bottom { --sx: -28vw; --sy: 14dvh; }
 @keyframes fly-chip {
   0% { transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(0.55); opacity: 0; }
   22% { opacity: 1; }
@@ -857,22 +816,6 @@
 }
 .zone.mine .meld { filter: none; }
 
-/* phones: 2x2 grid, each player's melds next to their own discard corner */
-@media (max-height: 500px) {
-  .center {
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "ztop pile zright"
-      "zleft pile zbot";
-  }
-  .zone { padding: 3px 4px; align-content: center; justify-content: center; }
-  .zone.top, .zone.left { padding-left: calc(var(--dh) * 0.72 + 22px); }
-  .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 22px); }
-  .zone.top, .zone.right { align-content: flex-start; }
-  .zone.left, .zone.bottom { align-content: flex-end; }
-  .zone-card .zone-melds { flex-wrap: wrap; }
-}
-
 /* drag-to-draw sources must not scroll the page on touch */
 .pile-one .tile.back.clickable,
 .discard-spot.takeable .top-tile {
@@ -949,14 +892,94 @@
 .zone-card .zone-melds { display: contents; }
 .zone-head { gap: 4px; padding-right: 2px; }
 .meld { padding: 1px; border-radius: 4px; }
-@media (max-height: 500px) {
-  .zone { padding: 2px 3px; }
-  .zone.top, .zone.left { padding-left: calc(var(--dh) * 0.72 + 18px); }
-  .zone.right, .zone.bottom { padding-right: calc(var(--dh) * 0.72 + 18px); }
-}
-
 /* rack spans the whole row width: slots stretch to fill it */
 .rack-row { width: 100%; box-sizing: border-box; padding-left: calc(8px); padding-right: 8px; }
 .rack-dock { width: 100%; }
 .istaka { width: 100%; }
 .istaka-wood { box-sizing: border-box; max-width: 100%; }
+
+/* ——— corner seats + one big centre ——— */
+.play.okey-table {
+  --side: clamp(74px, 10vw, 124px);
+  --th: min(11dvh, 88px);
+  --mh: clamp(20px, 7dvh, 44px);
+  --dw: calc(var(--dh) * 0.72 + 14px);
+}
+.seat { flex-direction: column; align-items: center; gap: 3px; justify-self: center; padding: 2px 0; max-width: 100%; }
+.seat.left { grid-area: tl; align-self: start; }
+.seat.top { grid-area: tr; align-self: start; }
+.seat.right { grid-area: br; align-self: end; }
+.seat.bottom { grid-area: bl; align-self: end; padding-left: 0; }
+.seat-text,
+.seat.bottom .seat-text,
+.seat.top .seat-text {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 0;
+  max-width: calc(var(--side) - 6px);
+}
+.seat-text strong,
+.seat.bottom .seat-text strong {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.center {
+  grid-area: center;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "dl zl pile zr dr"
+    "dm zm pile zn dn";
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 calc(clamp(26px, 5vh, 40px) + 5px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.1) 80%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
+}
+/* each player owns one fixed grid cell, so meld frames can never overlap */
+.zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px;
+  overflow: hidden;
+  --th: var(--mh);
+}
+.zone.left { grid-area: zl; }
+.zone.top { grid-area: zr; }
+.zone.bottom { grid-area: zm; }
+.zone.right { grid-area: zn; }
+.zone-card { max-width: 100%; }
+.pile-cluster {
+  grid-area: pile;
+  align-self: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+}
+.discard-spot { width: var(--dw); }
+.discard-spot.left { grid-area: dl; align-self: start; }
+.discard-spot.top { grid-area: dr; align-self: start; }
+.discard-spot.bottom { grid-area: dm; align-self: end; }
+.discard-spot.right { grid-area: dn; align-self: end; }
+
+/* counter + contextual buttons */
+.hand-counter { color: #b6ff7a; border-color: rgba(182, 255, 122, 0.45); }
+.hand-counter b { color: #fff; margin-left: 3px; }
