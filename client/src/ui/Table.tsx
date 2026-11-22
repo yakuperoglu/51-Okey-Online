@@ -215,14 +215,18 @@ export function Table({
       : null;
   const canDiscard = state.isYourTurn && !needDraw && state.phase === "playing";
 
-  // "El aç": contiguous blocks on the rack are melds; a selection of 3+ tiles is the fallback.
-  const openingGroups = rackScore.groups.length ? rackScore.groups : selected.length >= 3 ? [selected] : [];
+  // Contiguous valid blocks on the rack count as the player's own melds (no hints: only a number is shown).
   const opened = Boolean(youPlayer?.opened);
-  const canSeries = openingGroups.length > 0 && (opened || rackScore.points >= 51);
+  const [pairsMode, setPairsMode] = useState(false);
+  useEffect(() => setPairsMode(false), [state.round]);
+  const pairsActive = pairsMode && !opened;
+  const seriesGroups = rackScore.groups;
   const pairGroups = rackScore.pairGroups;
-  const canPairs = !opened && pairGroups.length >= minPairs;
-  const useSeries = canSeries || !canPairs;
-  const canOpenNow = canDiscard;
+  const counterValue = pairsActive ? pairGroups.length : rackScore.points;
+  const showOpen = !opened && canDiscard && (pairsActive ? pairGroups.length >= minPairs : rackScore.points >= 51);
+  // After opening: new melds go down with the same "open" action (pairs players only add pairs).
+  const layGroups = opened ? (youPlayer?.goingPairs ? pairGroups : seriesGroups) : [];
+  const showLay = opened && canDiscard && layGroups.length > 0;
 
   const meldsByOwner = useMemo(() => {
     const map = new Map<string, TableMeld[]>();
@@ -364,17 +368,18 @@ export function Table({
   }
 
   function openHand() {
-    if (!canOpenNow) return;
-    if (useSeries) {
-      onAction({ type: "open", groups: openingGroups, goingPairs: false });
-    } else {
+    if (!showOpen) return;
+    if (pairsActive) {
       onAction({ type: "open", groups: pairGroups, goingPairs: true });
+    } else {
+      onAction({ type: "open", groups: seriesGroups, goingPairs: false });
     }
     setSelected([]);
   }
 
-  function openPairs() {
-    onAction({ type: "open", groups: pairGroups, goingPairs: true });
+  function layDown() {
+    if (!showLay) return;
+    onAction({ type: "open", groups: layGroups, goingPairs: Boolean(youPlayer?.goingPairs) });
     setSelected([]);
   }
 
@@ -431,6 +436,11 @@ export function Table({
             ×
           </button>
           <span className="hud-chip">{state.round}. El</span>
+          {!opened && state.phase === "playing" ? (
+            <span className="hud-chip hand-counter" title="Dizdiğin perlerin puanı">
+              <b>{counterValue}</b> {pairsActive ? "çift" : "puan"}
+            </span>
+          ) : null}
         </div>
         <div className="hud hud-r">
           {kanli ? (
@@ -565,19 +575,17 @@ export function Table({
               Geri koy
             </button>
           ) : null}
-          {canDiscard ? (
-            <button
-              type="button"
-              className={`open-btn ${canOpenNow ? "ready" : ""}`}
-              onClick={openHand}
-              disabled={!canOpenNow}
-              title="El aç"
-            >
+          {showOpen ? (
+            <button type="button" className="open-btn ready open-hand" onClick={openHand}>
               El aç
             </button>
-          ) : (
-            <span className="status-pill">{status}</span>
-          )}
+          ) : null}
+          {showLay ? (
+            <button type="button" className="open-btn ready lay-btn" onClick={layDown}>
+              Masaya diz
+            </button>
+          ) : null}
+          {!showOpen && !showLay ? <span className="status-pill">{status}</span> : null}
           {flash ? <em className="status-flash">{flash}</em> : null}
         </div>
         <div className="rack-dock">
@@ -602,9 +610,9 @@ export function Table({
           {!opened ? (
             <button
               type="button"
-              className="pairs-fab"
-              onClick={canDiscard ? openPairs : undefined}
-              disabled={!canDiscard}
+              className={`pairs-fab ${pairsActive ? "on" : ""}`}
+              onClick={() => setPairsMode((v) => !v)}
+              aria-pressed={pairsActive}
               title="Çifte git"
             >
               <i aria-hidden>⇉</i>

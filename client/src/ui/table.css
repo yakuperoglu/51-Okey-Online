@@ -983,3 +983,4 @@
 /* counter + contextual buttons */
 .hand-counter { color: #b6ff7a; border-color: rgba(182, 255, 122, 0.45); }
 .hand-counter b { color: #fff; margin-left: 3px; }
+.pairs-fab.on { background: linear-gradient(180deg, #3fcf6e, #1f9a48); color: #06260f; }
