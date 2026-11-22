@@ -217,11 +217,13 @@ export function Table({
 
   // Contiguous valid blocks on the rack count as the player's own melds (no hints: only a number is shown).
   const opened = Boolean(youPlayer?.opened);
-  const [pairsMode, setPairsMode] = useState(false);
-  useEffect(() => setPairsMode(false), [state.round]);
-  const pairsActive = pairsMode && !opened;
   const seriesGroups = rackScore.groups;
   const pairGroups = rackScore.pairGroups;
+  // Mode is chosen automatically from the rack: series at 51+, else pairs at minPairs, else the one relatively closer.
+  const pairsActive =
+    !opened &&
+    rackScore.points < 51 &&
+    (pairGroups.length >= minPairs || pairGroups.length / Math.max(1, minPairs) > rackScore.points / 51);
   const counterValue = pairsActive ? pairGroups.length : rackScore.points;
   const showOpen = !opened && canDiscard && (pairsActive ? pairGroups.length >= minPairs : rackScore.points >= 51);
   // After opening: new melds go down with the same "open" action (pairs players only add pairs).
@@ -607,18 +609,6 @@ export function Table({
             onFlip={flipTile}
             placeRef={placeRef}
           />
-          {!opened ? (
-            <button
-              type="button"
-              className={`pairs-fab ${pairsActive ? "on" : ""}`}
-              onClick={() => setPairsMode((v) => !v)}
-              aria-pressed={pairsActive}
-              title="Çifte git"
-            >
-              <i aria-hidden>⇉</i>
-              <span>Çifte git</span>
-            </button>
-          ) : null}
         </div>
       </div>
 

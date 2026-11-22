@@ -841,40 +841,6 @@
 .istaka-groove { gap: 2px; }
 .tile.rack, .istaka-slot .tile { border-radius: calc(var(--th) * 0.12); }
 
-/* "Çifte git": small round-ended button floating above the rack's right end */
-.pairs-fab {
-  position: absolute;
-  right: 2px;
-  bottom: 100%;
-  margin-bottom: 3px;
-  z-index: 9;
-  height: clamp(26px, 5vh, 40px);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 clamp(10px, 1.6vw, 18px) 0 4px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: linear-gradient(180deg, #5b4a3a, #2e1f14);
-  color: #f6e7c8;
-  font-size: clamp(11px, 1.7vh + 0.2vw, 16px);
-  font-weight: 800;
-  white-space: nowrap;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
-}
-.pairs-fab i {
-  font-style: normal;
-  width: calc(clamp(26px, 5vh, 40px) - 8px);
-  height: calc(clamp(26px, 5vh, 40px) - 8px);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #4b4b4b, #1f1f1f);
-  color: #fff;
-}
-.pairs-fab:disabled { opacity: 0.45; }
-.pairs-fab:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
-
 /* meld area: no scrolling, header inline with the melds, tile size is fitted by Table.tsx (--mh on .center) */
 .center { margin-bottom: calc(clamp(26px, 5vh, 40px) + 5px); }
 .zone { overflow: visible; }
@@ -983,4 +949,3 @@
 /* counter + contextual buttons */
 .hand-counter { color: #b6ff7a; border-color: rgba(182, 255, 122, 0.45); }
 .hand-counter b { color: #fff; margin-left: 3px; }
-.pairs-fab.on { background: linear-gradient(180deg, #3fcf6e, #1f9a48); color: #06260f; }
