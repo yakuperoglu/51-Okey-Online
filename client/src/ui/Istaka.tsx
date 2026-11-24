@@ -61,6 +61,51 @@ function slotFromPoint(x: number, y: number): number {
   return Number.isInteger(to) && to >= 0 && to < RACK_SLOTS ? to : NaN;
 }
 
+/** Forgiving drop zones: how far (px) from a pile a released tile still counts as dropped on it. */
+export const DROP_RADIUS = 100;
+/** Extra margin (px) around the rack inside which a dragged deck/discard tile counts as drawn. */
+export const RACK_DRAW_MARGIN = 60;
+
+function distToRect(x: number, y: number, r: DOMRect): number {
+  const dx = Math.max(r.left - x, 0, x - r.right);
+  const dy = Math.max(r.top - y, 0, y - r.bottom);
+  return Math.hypot(dx, dy);
+}
+
+/** True when the point sits on the rack itself (rearranging, never a discard). */
+function overRack(x: number, y: number): boolean {
+  const rack = document.querySelector(".istaka");
+  if (!rack) return false;
+  const r = rack.getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+/** Distance from the point to the nearest element matching the selector (Infinity if none). */
+function distToSelector(x: number, y: number, selector: string): number {
+  const el = document.querySelector(selector);
+  return el ? distToRect(x, y, el.getBoundingClientRect()) : Infinity;
+}
+
+/** Which pile a tile released at (x, y) is aimed at: exact hit first, otherwise the nearest within DROP_RADIUS. */
+export function dropTarget(x: number, y: number, canReturn: boolean): "discard" | "return" | null {
+  if (overRack(x, y)) return null;
+  const hit = document.elementFromPoint(x, y);
+  if (canReturn && hit?.closest("[data-return-drop]")) return "return";
+  if (hit?.closest("[data-discard-drop]")) return "discard";
+  const dd = distToSelector(x, y, "[data-discard-drop]");
+  const dr = canReturn ? distToSelector(x, y, "[data-return-drop]") : Infinity;
+  if (Math.min(dd, dr) > DROP_RADIUS) return null;
+  return dr < dd ? "return" : "discard";
+}
+
+/** True when a deck/discard tile dragged from (sx, sy) and released at (x, y) should count as a draw. */
+export function isDrawDrop(sy: number, x: number, y: number): boolean {
+  if (document.elementFromPoint(x, y)?.closest(".istaka")) return true;
+  const rack = document.querySelector(".istaka");
+  if (rack && distToRect(x, y, rack.getBoundingClientRect()) <= RACK_DRAW_MARGIN) return true;
+  return y - sy > 60;
+}
+
 export function Istaka({
   tiles,
   selected,
@@ -158,10 +203,10 @@ export function Istaka({
     setGhost({ x: event.clientX, y: event.clientY });
     if (Math.hypot(event.clientX - d.x, event.clientY - d.y) > 6) d.moved = true;
     if (!d.moved) return;
-    const overDiscard = Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-discard-drop]"));
+    const target = dropTarget(event.clientX, event.clientY, d.id === returnTileId);
+    const overDiscard = target === "discard";
+    const overReturn = target === "return";
     onHoverDiscard?.(overDiscard);
-    const overReturn =
-      d.id === returnTileId && Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-return-drop]"));
     onHoverReturn?.(overReturn);
     if (overDiscard || overReturn) {
       clearDwell();
@@ -200,9 +245,9 @@ export function Istaka({
     const d = drag.current;
     drag.current = null;
     clearDwell();
-    const overDiscard = Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-discard-drop]"));
-    const overReturn =
-      d?.id === returnTileId && Boolean(document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-return-drop]"));
+    const target = dropTarget(event.clientX, event.clientY, d?.id === returnTileId);
+    const overDiscard = target === "discard";
+    const overReturn = target === "return";
     const dropSlot = hoverRef.current ?? slotFromPoint(event.clientX, event.clientY);
     setDragging(null);
     setGhost(null);

@@ -941,10 +941,11 @@
   padding: 2px 6px;
 }
 .discard-spot { width: var(--dw); }
-.discard-spot.left { grid-area: dl; align-self: start; }
-.discard-spot.top { grid-area: dr; align-self: start; }
-.discard-spot.bottom { grid-area: dm; align-self: end; }
-.discard-spot.right { grid-area: dn; align-self: end; }
+/* each pile sits on its owner's right-hand side, between owner and the player who takes it */
+.discard-spot.left { grid-area: dm; align-self: end; }
+.discard-spot.top { grid-area: dl; align-self: start; }
+.discard-spot.bottom { grid-area: dn; align-self: end; }
+.discard-spot.right { grid-area: dr; align-self: start; }
 
 /* counter + contextual buttons */
 .hand-counter { color: #b6ff7a; border-color: rgba(182, 255, 122, 0.45); }

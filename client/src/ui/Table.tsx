@@ -10,7 +10,7 @@ import {
   type PublicPlayer,
   type TableMeld,
 } from "@okey/engine";
-import { Istaka } from "./Istaka";
+import { Istaka, isDrawDrop } from "./Istaka";
 import { scoreRack } from "./rackScore";
 import { TileBack, TileView } from "./Tile";
 import { AvatarView } from "./Avatar";
@@ -350,8 +350,8 @@ export function Table({
       }, 60);
       if (!drop) return;
       const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      if (!el?.closest(".istaka")) return;
-      const slot = Number(el.closest("[data-slot]")?.getAttribute("data-slot"));
+      if (!isDrawDrop(sy, ev.clientX, ev.clientY)) return;
+      const slot = Number(el?.closest("[data-slot]")?.getAttribute("data-slot"));
       placeRef.current = Number.isInteger(slot) ? slot : null;
       window.setTimeout(() => {
         placeRef.current = null;
