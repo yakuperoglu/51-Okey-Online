@@ -199,18 +199,18 @@ describe("puanlama", () => {
     const players = [
       base({ id: "w", name: "W", opened: true }),
       base({ id: "a", opened: false }),
-      base({
-        id: "b",
-        opened: true,
-        hand: [t("x", "yellow", 7)],
-      }),
+      base({ id: "p", name: "P", opened: true }),
       base({ id: "c", opened: true, goingPairs: true, hand: [t("y", "blue", 3)] }),
-    ];
+      base({ id: "d", opened: true, hand: [t("x", "yellow", 7)] }),
+    ].slice(0, 4);
+    players[3] = base({ id: "d", opened: true, hand: [t("x", "yellow", 7)] });
     const { finish, players: next } = applyRoundScores(players, "w", DEFAULT_CONFIG, false, false);
     expect(finish.winnerDelta).toBe(-101);
     expect(next.find((p) => p.id === "a")?.score).toBe(101);
-    expect(next.find((p) => p.id === "b")?.score).toBe(7);
-    expect(next.find((p) => p.id === "c")?.score).toBe(6);
+    expect(next.find((p) => p.id === "d")?.score).toBe(7);
+    // goingPairs leftovers count double
+    const pl2 = players.map((p) => (p.id === "d" ? { ...p, goingPairs: true, hand: [t("y", "blue", 3)] } : p));
+    expect(applyRoundScores(pl2, "w", DEFAULT_CONFIG, false, false).players[3].score).toBe(6);
   });
 
   it("çiftli oyunda kazananın eşi de aynı puanı alır", () => {

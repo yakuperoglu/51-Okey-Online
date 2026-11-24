@@ -1,6 +1,11 @@
 import { applyAttach, isPlayableOnTable } from "./process.js";
 import { validateMeld } from "./melds.js";
-import { applyNoWinnerScores, applyRoundScores } from "./scoring.js";
+import {
+  applyNoWinnerScores,
+  applyRoundScores,
+  handMultiplier,
+  normalizeTotalRounds,
+} from "./scoring.js";
 import {
   applyOkeyTransform,
   cloneTile,
@@ -17,6 +22,7 @@ import {
   type GameConfig,
   type GameEvent,
   type GameState,
+  type MatchResult,
   type PlayerState,
   type PublicPlayer,
   type TableMeld,
@@ -87,7 +93,55 @@ function placedValue(tile: Tile, okeyAs: Record<string, { value: number }> | und
   return tile.value;
 }
 
-/** House penalty: tile face value x 10 added straight to the target's score. */
+function mul(state: GameState): number {
+  return handMultiplier(state.round);
+}
+
+function snapshotScores(players: PlayerState[]): Record<string, number> {
+  return Object.fromEntries(players.map((p) => [p.id, p.score]));
+}
+
+function computeMatchResult(players: PlayerState[]): MatchResult {
+  // Teams are (0,2) and (1,3). The team of the highest individual total loses.
+  const teams: [number, number][] = [
+    [0, 2],
+    [1, 3],
+  ];
+  const teamTotals = teams.map(([a, b]) => ({
+    ids: [players[a].id, players[b].id] as [string, string],
+    total: players[a].score + players[b].score,
+  }));
+  const maxScore = Math.max(...players.map((p) => p.score));
+  const topIdx = players.map((p, i) => (p.score === maxScore ? i : -1)).filter((i) => i >= 0);
+  const candidateTeams = new Set(topIdx.map((i) => i % 2));
+  let loserTeamIdx: number;
+  if (candidateTeams.size === 1) loserTeamIdx = [...candidateTeams][0];
+  else loserTeamIdx = teamTotals[0].total >= teamTotals[1].total ? 0 : 1;
+  const highest = players.find((p, i) => p.score === maxScore && i % 2 === loserTeamIdx)!;
+  return {
+    loserTeam: teamTotals[loserTeamIdx].ids,
+    winnerTeam: teamTotals[1 - loserTeamIdx].ids,
+    highestPlayerId: highest.id,
+    teamTotals,
+  };
+}
+
+/** Record the hand's score deltas; move to roundEnd or, after the last hand, matchEnd. */
+function closeRound(state: GameState): void {
+  const deltas: Record<string, number> = {};
+  for (const p of state.players) deltas[p.id] = p.score - (state.roundStartScores[p.id] ?? 0);
+  state.history.push({ round: state.round, multiplier: mul(state), deltas });
+  if (state.round >= state.config.totalRounds) {
+    state.phase = "matchEnd";
+    state.matchResult = computeMatchResult(state.players);
+    const top = state.players.find((p) => p.id === state.matchResult!.highestPlayerId)!;
+    pushEvent(state, `Maç bitti. En yüksek puan: ${top.name}, takımı kaybetti.`, "finish");
+  } else {
+    state.phase = "roundEnd";
+  }
+}
+
+/** House penalty: tile face value x 10 (x hand multiplier) added straight to the target's score. */
 function addHousePenalty(
   state: GameState,
   target: PlayerState,
@@ -103,7 +157,7 @@ function addHousePenalty(
 /** Rule 2: the taken discard was actually used, so the previous player pays value x 10. */
 function penalizeTakenUse(state: GameState, user: PlayerState, value: number): void {
   const prev = state.players[prevIndex(state)];
-  const amount = value * 10;
+  const amount = value * 10 * mul(state);
   addHousePenalty(
     state,
     prev,
@@ -159,7 +213,9 @@ export function createMatch(
     ...config,
     ruleset,
     assist: false, // all tables are unassisted
-    pairing: config.pairing ?? DEFAULT_CONFIG.pairing,
+    pairing: "ciftli", // team mode only
+    minPairs: 5, // pairs opening always needs 5 pairs
+    totalRounds: normalizeTotalRounds(config.totalRounds ?? DEFAULT_CONFIG.totalRounds),
     potContribution: config.potContribution ?? (ruleset === "kanli" ? 10 : 0),
   };
   const starterIndex = Math.floor(rng() * 4);
@@ -194,6 +250,9 @@ export function createMatch(
     finish: null,
     meldSeq: 0,
     eventSeq: 0,
+    roundStartScores: snapshotScores(players),
+    history: [],
+    matchResult: null,
   };
   pushEvent(state, `El ${state.round} başladı.`, "info");
   pushEvent(state, `İlk sıra: ${players[starterIndex].name} (15 taş).`, "info");
@@ -210,6 +269,7 @@ function startNextRound(state: GameState, rng: () => number): GameState {
   next.tableMelds = [];
   next.finish = null;
   next.meldSeq = 0;
+  next.roundStartScores = snapshotScores(next.players);
   const dealt = dealHands(next.players, next.starterIndex, rng);
   next.indicator = dealt.indicator;
   next.okey = dealt.okey;
@@ -257,11 +317,12 @@ function applyOpen(state: GameState, action: Extract<GameAction, { type: "open" 
     const result = validateMeld(taken.tiles, goingPairs);
     if (!result.ok) {
       if (!player.opened) {
-        player.score += state.config.penalty;
+        const pen = state.config.penalty * mul(state);
+        player.score += pen;
         player.lastPenalty = "Yanlış açma";
         pushEvent(
           state,
-          `${player.name} hatalı açtı (${result.error}) ve ${state.config.penalty} ceza yedi.`,
+          `${player.name} hatalı açtı (${result.error}) ve ${pen} ceza yedi.`,
           "penalty",
         );
         return ok(state);
@@ -280,11 +341,12 @@ function applyOpen(state: GameState, action: Extract<GameAction, { type: "open" 
   if (!player.opened) {
     if (goingPairs) {
       if (validated.length < state.config.minPairs) {
-        player.score += state.config.penalty;
+        const pen = state.config.penalty * mul(state);
+        player.score += pen;
         player.lastPenalty = "Yanlış açma";
         pushEvent(
           state,
-          `${player.name} yetersiz çiftle inmeye çalıştı ve ${state.config.penalty} ceza yedi.`,
+          `${player.name} yetersiz çiftle inmeye çalıştı ve ${pen} ceza yedi.`,
           "penalty",
         );
         return ok(state);
@@ -292,11 +354,12 @@ function applyOpen(state: GameState, action: Extract<GameAction, { type: "open" 
     } else {
       const points = validated.reduce((s, m) => s + m.points, 0);
       if (points < 51) {
-        player.score += state.config.penalty;
+        const pen = state.config.penalty * mul(state);
+        player.score += pen;
         player.lastPenalty = "Yanlış açma";
         pushEvent(
           state,
-          `${player.name} 51 barajını geçemedi (${points}) ve ${state.config.penalty} ceza yedi.`,
+          `${player.name} 51 barajını geçemedi (${points}) ve ${pen} ceza yedi.`,
           "penalty",
         );
         return ok(state);
@@ -379,12 +442,13 @@ function applyProcess(
   if (meld.ownerId !== player.id) {
     const owner = state.players.find((p) => p.id === meld.ownerId);
     if (owner) {
+      const amount = value * 10 * mul(state);
       addHousePenalty(
         state,
         owner,
-        value * 10,
+        amount,
         "İşlek cezası",
-        `${owner.name} işlek cezası: +${value * 10} (${player.name} işledi).`,
+        `${owner.name} işlek cezası: +${amount} (${player.name} işledi).`,
       );
     }
   }
@@ -399,10 +463,10 @@ function applyProcess(
 function endRound(state: GameState, winner: PlayerState, discarded: Tile | null): void {
   const withOkey = discarded?.kind === "wildOkey";
   const withPairs = winner.goingPairs;
-  const scored = applyRoundScores(state.players, winner.id, state.config, withOkey, withPairs);
+  const hm = mul(state);
+  const scored = applyRoundScores(state.players, winner.id, state.config, withOkey, withPairs, hm);
   state.players = scored.players;
   state.finish = scored.finish;
-  state.phase = "roundEnd";
 
   if (withOkey && state.pot > 0) {
     const w = state.players.find((p) => p.id === winner.id)!;
@@ -411,14 +475,16 @@ function endRound(state: GameState, winner: PlayerState, discarded: Tile | null)
     state.pot = 0;
   }
 
+  const pen = state.config.penalty * hm;
   const label = withPairs && withOkey
-    ? "çifte gidip okey atarak bitti (-404)"
+    ? `çifte gidip okey atarak bitti (-${pen * 4})`
     : withOkey
-      ? "okey atarak bitti (-202, kanlı)"
+      ? `okey atarak bitti (-${pen * 2}, kanlı)`
       : withPairs
-        ? "çifte giderek bitti (-202)"
-        : "normal bitti (-101)";
+        ? `çifte giderek bitti (-${pen * 2})`
+        : `normal bitti (-${pen})`;
   pushEvent(state, `${winner.name} ${label}.`, "finish");
+  closeRound(state);
 }
 
 function applyDiscard(state: GameState, tileId: string): ActionResult {
@@ -440,15 +506,17 @@ function applyDiscard(state: GameState, tileId: string): ActionResult {
 
   if (!finishing) {
     if (tile.kind === "wildOkey") {
-      player.score += state.config.penalty;
+      const pen = state.config.penalty * mul(state);
+      player.score += pen;
       player.lastPenalty = "Okey atma";
-      pushEvent(state, `${player.name} okey attı: +${state.config.penalty} ceza.`, "penalty");
+      pushEvent(state, `${player.name} okey attı: +${pen} ceza.`, "penalty");
     } else if (isPlayableOnTable(state.tableMelds, tile)) {
-      player.score += state.config.penalty;
+      const pen = state.config.penalty * mul(state);
+      player.score += pen;
       player.lastPenalty = "İşlek taş atma";
       pushEvent(
         state,
-        `${player.name} işlek taş (${describeTile(tile)}) attı: +${state.config.penalty} ceza.`,
+        `${player.name} işlek taş (${describeTile(tile)}) attı: +${pen} ceza.`,
         "penalty",
       );
     }
@@ -476,6 +544,7 @@ export function applyAction(
   const next = cloneState(state);
 
   if (action.type === "nextRound") {
+    if (next.phase === "matchEnd") return fail(next, "Maç bitti.");
     if (next.phase !== "roundEnd") return fail(next, "El henüz bitmedi.");
     return ok(startNextRound(next, rng));
   }
@@ -488,8 +557,8 @@ export function applyAction(
     if (next.turn.hasDrawn) return fail(next, "Bu elde zaten taş çektin.");
     if (next.drawPile.length === 0) {
       pushEvent(next, "Kapalı taşlar bitti, el berabere kapandı.", "info");
-      next.players = applyNoWinnerScores(next.players, next.config);
-      next.phase = "roundEnd";
+      next.players = applyNoWinnerScores(next.players, next.config, mul(next));
+      closeRound(next);
       return ok(next);
     }
     const tile = next.drawPile.shift()!;
@@ -572,6 +641,9 @@ export function serializeFor(state: GameState, playerId: string): ClientGameStat
     finish: state.finish,
     yourHand: you ? you.hand : [],
     config: state.config,
+    handMultiplier: mul(state),
+    history: state.history,
+    matchResult: state.matchResult,
   };
 }
 

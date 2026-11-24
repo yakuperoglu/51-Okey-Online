@@ -63,14 +63,33 @@ export interface PlayerState {
 }
 
 export type TurnPhase = "draw" | "play";
-export type GamePhase = "playing" | "roundEnd";
+export type GamePhase = "playing" | "roundEnd" | "matchEnd";
 
 export interface FinishInfo {
   winnerId: string;
   withOkey: boolean;
   withPairs: boolean;
+  /** Finish factor: 1 normal, 2 okey or pairs, 4 both. */
   multiplier: number;
+  /** Hand multiplier (8, 6, 5, 4 cycle) already applied to winnerDelta and all leftovers. */
+  handMultiplier: number;
+  /** Winner's (and partner's) delta, already multiplied by the hand multiplier. */
   winnerDelta: number;
+}
+
+export interface RoundHistoryEntry {
+  round: number;
+  multiplier: number;
+  /** Score change per player id in that hand, including in-hand penalties. */
+  deltas: Record<string, number>;
+}
+
+export interface MatchResult {
+  loserTeam: [string, string];
+  winnerTeam: [string, string];
+  /** Player with the highest individual total (his team loses). */
+  highestPlayerId: string;
+  teamTotals: { ids: [string, string]; total: number }[];
 }
 
 export interface GameEvent {
@@ -86,6 +105,8 @@ export interface GameConfig {
   ruleset: "normal" | "kanli";
   pairing: "tekli" | "ciftli";
   assist: boolean;
+  /** Number of hands in the match: a multiple of 4 between 4 and 16. */
+  totalRounds: number;
 }
 
 export interface GameState {
@@ -109,6 +130,10 @@ export interface GameState {
   finish: FinishInfo | null;
   meldSeq: number;
   eventSeq: number;
+  /** Scores at the start of the current hand (for history deltas). */
+  roundStartScores: Record<string, number>;
+  history: RoundHistoryEntry[];
+  matchResult: MatchResult | null;
 }
 
 export type GameAction =
@@ -166,6 +191,10 @@ export interface ClientGameState {
   finish: FinishInfo | null;
   yourHand: Tile[];
   config: GameConfig;
+  /** Multiplier of the current hand (8, 6, 5, 4 cycle). */
+  handMultiplier: number;
+  history: RoundHistoryEntry[];
+  matchResult: MatchResult | null;
 }
 
 export const COLORS: TileColor[] = ["yellow", "red", "black", "blue"];
@@ -178,10 +207,11 @@ export const COLOR_TR: Record<TileColor, string> = {
 };
 
 export const DEFAULT_CONFIG: GameConfig = {
-  minPairs: 4,
+  minPairs: 5,
   potContribution: 10,
   penalty: 101,
   ruleset: "kanli",
-  pairing: "tekli",
+  pairing: "ciftli",
   assist: false,
+  totalRounds: 8,
 };

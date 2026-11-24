@@ -41,9 +41,9 @@ describe("ceza kuralları", () => {
     s.tableMelds = [meldOf("c")];
     const r = applyAction(s, "b", { type: "process", tileId: "r4", meldId: "m1", place: "right" });
     expect(r.ok).toBe(true);
-    expect(r.state.players[2].score).toBe(40);
+    expect(r.state.players[2].score).toBe(40 * 8);
     expect(r.state.players[1].score).toBe(0);
-    expect(r.state.events.some((e) => e.text.includes("işlek cezası: +40"))).toBe(true);
+    expect(r.state.events.some((e) => e.text.includes("işlek cezası: +320"))).toBe(true);
   });
 
   it("kendi perine işleyince ceza yok", () => {
@@ -65,8 +65,8 @@ describe("ceza kuralları", () => {
     const r = applyAction(d, "b", { type: "open", groups: [["k11", "k12", "k13"], ["y9", "r9", "u9"]], goingPairs: false });
     expect(r.ok).toBe(true);
     expect(r.state.players[1].opened).toBe(true);
-    expect(r.state.players[0].score).toBe(120);
-    expect(r.state.events.some((e) => e.text.includes("A ceza: +120"))).toBe(true);
+    expect(r.state.players[0].score).toBe(120 * 8);
+    expect(r.state.events.some((e) => e.text.includes("A ceza: +960"))).toBe(true);
   });
 
   it("yerden alınan taş geri bırakılırsa ceza yok", () => {
@@ -87,7 +87,7 @@ describe("ceza kuralları", () => {
     const r = applyAction(s, "b", { type: "process", tileId: "w", meldId: "m1", place: "right" });
     expect(r.ok).toBe(true);
     const as = r.state.tableMelds[0].okeyAs["w"].value;
-    expect(r.state.players[2].score).toBe(as * 10);
+    expect(r.state.players[2].score).toBe(as * 10 * 8);
     expect(as).toBeGreaterThan(0);
   });
 
@@ -100,6 +100,6 @@ describe("ceza kuralları", () => {
     const d = applyAction(s, "b", { type: "drawDiscard" }).state;
     const r = applyAction(d, "b", { type: "process", tileId: "r4", meldId: "m1", place: "right" });
     expect(r.ok).toBe(true);
-    expect(r.state.players[0].score).toBe(80);
+    expect(r.state.players[0].score).toBe(80 * 8);
   });
 });
