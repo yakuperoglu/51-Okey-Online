@@ -184,13 +184,7 @@ export function Table({
   const placeRef = useRef<number | null>(null);
   const [flippedState, setFlippedState] = useState<{ round: number; ids: Set<string> }>({ round: state.round, ids: new Set() });
   const prevMelds = useRef<TableMeld[] | null>(null);
-  const baseScores = useRef<Map<string, number>>(new Map());
   const onRackLayout = useCallback((slots: (string | null)[]) => setRackSlots(slots), []);
-
-  // Remember scores while the round is being played so the round-end modal can show deltas.
-  if (state.phase === "playing") {
-    baseScores.current = new Map(state.players.map((p) => [p.id, p.score]));
-  }
 
   const you = state.yourIndex;
   const needDraw = state.isYourTurn && !state.turn.hasDrawn;
@@ -660,8 +654,7 @@ export function Table({
               </thead>
               <tbody>
                 {state.players.map((p) => {
-                  const base = baseScores.current.get(p.id);
-                  const delta = base === undefined ? 0 : p.score - base;
+                  const delta = state.history.find((h) => h.round === state.round)?.deltas[p.id] ?? 0;
                   return (
                     <tr key={p.id} className={p.id === winner?.id ? "win" : ""}>
                       <td>{p.id === youPlayer?.id ? `${p.name} (sen)` : p.name}</td>

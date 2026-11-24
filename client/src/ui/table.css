@@ -489,8 +489,8 @@
 .re-table th:first-child, .re-table td:first-child { text-align: left; }
 .re-table td { text-align: right; padding: 4px 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .re-table tr.win td:first-child { color: #ffe08a; font-weight: 800; }
-.re-table .pos { color: #8dff9a; font-weight: 800; }
-.re-table .neg { color: #ff9a9a; font-weight: 800; }
+.re-table .pos { color: #ff9a9a; font-weight: 800; }
+.re-table .neg { color: #8dff9a; font-weight: 800; }
 .round-end .primary { min-height: 40px; }
 
 /* ——— phones in portrait: gate ——— */
@@ -992,7 +992,7 @@
 .nb-table .nb-right { border-left: 2px solid rgba(31, 58, 138, 0.5); }
 .nb-teams th { font-size: 24px; color: #7a1f1f; border-bottom: 2px solid rgba(31, 58, 138, 0.55); }
 .nb-names th { font-size: 19px; border-bottom: 1px solid rgba(31, 58, 138, 0.4); }
-.nb-table td.neg { color: #1f3a8a; }
+.nb-table td.neg { color: #1f6b34; }
 .nb-table td.pos { color: #8a1f2a; }
 .nb-table tr.cur td { background: rgba(255, 215, 90, 0.35); }
 .nb-total td { font-size: 24px; border-top: 2px solid rgba(31, 58, 138, 0.55); }
