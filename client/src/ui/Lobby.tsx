@@ -1,4 +1,4 @@
-import type { Pairing, PublicRoom, RoomView, RoomVisibility, Ruleset } from "@okey/engine";
+import type { PublicRoom, RoomView, RoomVisibility, Ruleset } from "@okey/engine";
 import type { UserProfile } from "../social/types";
 import { AvatarView } from "./Avatar";
 
@@ -6,9 +6,12 @@ export function rulesetLabel(v: Ruleset) {
   return v === "kanli" ? "Kanlı 51" : "Normal 51";
 }
 
-export function pairingLabel(v: Pairing) {
-  return v === "ciftli" ? "Çiftli" : "Tekli";
+/** Team mode only, pairs opening always needs 5 pairs. */
+export function rulesSummary(totalRounds: number) {
+  return `Takımlı · 5 çift · ${totalRounds} el`;
 }
+
+export const ROUND_CHOICES = [4, 8, 12, 16];
 
 export function Lobby({
   profile,
@@ -16,21 +19,15 @@ export function Lobby({
   onlineHint,
   code,
   setCode,
-  minPairs,
-  setMinPairs,
+  totalRounds,
+  setTotalRounds,
   ruleset,
   setRuleset,
-  pairing,
-  setPairing,
   visibility,
   setVisibility,
   rooms,
   filterRuleset,
   setFilterRuleset,
-  filterPairing,
-  setFilterPairing,
-  filterPairs,
-  setFilterPairs,
   filterOpen,
   setFilterOpen,
   queue,
@@ -55,21 +52,15 @@ export function Lobby({
   onlineHint: number;
   code: string;
   setCode: (v: string) => void;
-  minPairs: 4 | 5;
-  setMinPairs: (v: 4 | 5) => void;
+  totalRounds: number;
+  setTotalRounds: (v: number) => void;
   ruleset: Ruleset;
   setRuleset: (v: Ruleset) => void;
-  pairing: Pairing;
-  setPairing: (v: Pairing) => void;
   visibility: RoomVisibility;
   setVisibility: (v: RoomVisibility) => void;
   rooms: PublicRoom[];
   filterRuleset: Ruleset | "all";
   setFilterRuleset: (v: Ruleset | "all") => void;
-  filterPairing: Pairing | "all";
-  setFilterPairing: (v: Pairing | "all") => void;
-  filterPairs: 4 | 5 | "all";
-  setFilterPairs: (v: 4 | 5 | "all") => void;
   filterOpen: boolean;
   setFilterOpen: (v: boolean) => void;
   queue: { waiting: number; need: number } | null;
@@ -91,8 +82,6 @@ export function Lobby({
 }) {
   const filtered = rooms.filter((r) => {
     if (filterRuleset !== "all" && r.ruleset !== filterRuleset) return false;
-    if (filterPairing !== "all" && r.pairing !== filterPairing) return false;
-    if (filterPairs !== "all" && r.minPairs !== filterPairs) return false;
     if (filterOpen && r.seats >= 4) return false;
     return true;
   });
@@ -144,7 +133,7 @@ export function Lobby({
           <p className="card-kicker">{ruleset === "kanli" ? "Kanlı masa" : "Tek katlamasız"}</p>
           <h2>{rulesetLabel(ruleset)}</h2>
           <p>
-            {pairingLabel(pairing)} · {minPairs} çift
+            {rulesSummary(totalRounds)}
           </p>
           <span className="live-pill">{liveCount} oyuncu masada</span>
           <div className="card-chips">
@@ -154,18 +143,11 @@ export function Lobby({
             <button type="button" className={ruleset === "kanli" ? "on" : ""} onClick={() => setRuleset("kanli")}>
               Kanlı
             </button>
-            <button type="button" className={pairing === "tekli" ? "on" : ""} onClick={() => setPairing("tekli")}>
-              Tekli
-            </button>
-            <button type="button" className={pairing === "ciftli" ? "on" : ""} onClick={() => setPairing("ciftli")}>
-              Çiftli
-            </button>
-            <button type="button" className={minPairs === 4 ? "on" : ""} onClick={() => setMinPairs(4)}>
-              4 çift
-            </button>
-            <button type="button" className={minPairs === 5 ? "on" : ""} onClick={() => setMinPairs(5)}>
-              5 çift
-            </button>
+            {ROUND_CHOICES.map((n) => (
+              <button key={n} type="button" className={totalRounds === n ? "on" : ""} onClick={() => setTotalRounds(n)}>
+                {n} el
+              </button>
+            ))}
           </div>
           {searching ? (
             <div className="queue-mini">
@@ -240,7 +222,7 @@ export function Lobby({
         ) : (
           <button type="button" className="hemen-oyna" onClick={onQuick}>
             Hemen oyna
-            <small>{rulesetLabel(ruleset)} · {pairingLabel(pairing)}</small>
+            <small>{rulesetLabel(ruleset)} · {totalRounds} el</small>
           </button>
         )}
 
@@ -269,11 +251,9 @@ export function Lobby({
             <div className="filters">
               <button
                 type="button"
-                className={filterRuleset === "all" && filterPairing === "all" && filterPairs === "all" && !filterOpen ? "on" : ""}
+                className={filterRuleset === "all" && !filterOpen ? "on" : ""}
                 onClick={() => {
                   setFilterRuleset("all");
-                  setFilterPairing("all");
-                  setFilterPairs("all");
                   setFilterOpen(false);
                 }}
               >
@@ -284,12 +264,6 @@ export function Lobby({
               </button>
               <button type="button" className={filterRuleset === "kanli" ? "on" : ""} onClick={() => setFilterRuleset(filterRuleset === "kanli" ? "all" : "kanli")}>
                 Kanlı
-              </button>
-              <button type="button" className={filterPairing === "tekli" ? "on" : ""} onClick={() => setFilterPairing(filterPairing === "tekli" ? "all" : "tekli")}>
-                Tekli
-              </button>
-              <button type="button" className={filterPairing === "ciftli" ? "on" : ""} onClick={() => setFilterPairing(filterPairing === "ciftli" ? "all" : "ciftli")}>
-                Çiftli
               </button>
               <button type="button" onClick={onRefresh}>
                 Yenile
@@ -305,7 +279,7 @@ export function Lobby({
                     <div>
                       <strong>{r.hostName}</strong>
                       <p>
-                        {rulesetLabel(r.ruleset)} · {pairingLabel(r.pairing)} · {r.minPairs} çift
+                        {rulesetLabel(r.ruleset)} · {rulesSummary(r.totalRounds)}
                       </p>
                     </div>
                     <span className="seats-n">{r.seats}/4</span>
@@ -346,7 +320,7 @@ export function Waiting({
         <p className="eyebrow">{room.visibility === "public" ? "Herkese açık" : "Özel oda"}</p>
         <h2>{room.code}</h2>
         <p className="muted">
-          {rulesetLabel(room.ruleset)} · {pairingLabel(room.pairing)} · {room.minPairs} çift
+          {rulesetLabel(room.ruleset)} · {rulesSummary(room.totalRounds)}
           {room.visibility === "private" ? " · Kodu arkadaşlarınla paylaş" : " · Açık listede görünür"}
         </p>
         <div className="wait-felt">

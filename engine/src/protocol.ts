@@ -10,6 +10,7 @@ export type ClientToServer =
       name: string;
       avatarId?: string;
       minPairs?: 4 | 5;
+      totalRounds?: number;
       visibility?: RoomVisibility;
       ruleset?: Ruleset;
       pairing?: Pairing;
@@ -22,6 +23,7 @@ export type ClientToServer =
       name: string;
       avatarId?: string;
       minPairs?: 4 | 5;
+      totalRounds?: number;
       ruleset?: Ruleset;
       pairing?: Pairing;
       assist?: boolean;
@@ -49,6 +51,7 @@ export interface RoomView {
   seats: RoomSeat[];
   started: boolean;
   minPairs: number;
+  totalRounds: number;
   visibility: RoomVisibility;
   ruleset: Ruleset;
   pairing: Pairing;
@@ -62,6 +65,7 @@ export interface PublicRoom {
   seats: number;
   started: boolean;
   minPairs: number;
+  totalRounds: number;
   ruleset: Ruleset;
   pairing: Pairing;
   assist: boolean;

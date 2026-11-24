@@ -3,7 +3,6 @@ import type { Socket } from "socket.io-client";
 import type {
   ClientGameState,
   GameAction,
-  Pairing,
   PublicRoom,
   RoomView,
   RoomVisibility,
@@ -33,17 +32,14 @@ export default function App() {
   const [showRooms, setShowRooms] = useState(false);
   const [soundOn, setSoundOn] = useState(readSoundOn);
   const [code, setCode] = useState("");
-  const [minPairs, setMinPairs] = useState<4 | 5>(4);
+  const [totalRounds, setTotalRounds] = useState(8);
   const [ruleset, setRuleset] = useState<Ruleset>("normal");
-  const [pairing, setPairing] = useState<Pairing>("tekli");
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomView | null>(null);
   const [game, setGame] = useState<ClientGameState | null>(null);
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [filterRuleset, setFilterRuleset] = useState<Ruleset | "all">("all");
-  const [filterPairing, setFilterPairing] = useState<Pairing | "all">("all");
-  const [filterPairs, setFilterPairs] = useState<4 | 5 | "all">("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingSolo, setPendingSolo] = useState(false);
@@ -126,7 +122,7 @@ export default function App() {
     playJoin();
     setError(null);
     localRef.current?.stop();
-    localRef.current = startLocalGame({ name: name || "Oyuncu", avatarId, minPairs, ruleset, pairing }, (msg) =>
+    localRef.current = startLocalGame({ name: name || "Oyuncu", avatarId, totalRounds, ruleset }, (msg) =>
       onMsgRef.current(msg),
     );
   }
@@ -175,10 +171,9 @@ export default function App() {
         type: "createRoom",
         name: name || "Oyuncu",
         avatarId,
-        minPairs,
+        totalRounds,
         visibility,
         ruleset,
-        pairing,
       }),
     );
   }
@@ -211,9 +206,8 @@ export default function App() {
         type: "quickPlay",
         name: name || "Oyuncu",
         avatarId,
-        minPairs,
+        totalRounds,
         ruleset,
-        pairing,
       }),
     );
   }
@@ -279,21 +273,15 @@ export default function App() {
           onlineHint={rooms.reduce((n, r) => n + r.seats, 0)}
           code={code}
           setCode={setCode}
-          minPairs={minPairs}
-          setMinPairs={setMinPairs}
+          totalRounds={totalRounds}
+          setTotalRounds={setTotalRounds}
           ruleset={ruleset}
           setRuleset={setRuleset}
-          pairing={pairing}
-          setPairing={setPairing}
           visibility={visibility}
           setVisibility={setVisibility}
           rooms={rooms}
           filterRuleset={filterRuleset}
           setFilterRuleset={setFilterRuleset}
-          filterPairing={filterPairing}
-          setFilterPairing={setFilterPairing}
-          filterPairs={filterPairs}
-          setFilterPairs={setFilterPairs}
           filterOpen={filterOpen}
           setFilterOpen={setFilterOpen}
           queue={queue}

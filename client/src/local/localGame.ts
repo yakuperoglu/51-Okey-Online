@@ -1,6 +1,7 @@
 import {
   applyAction,
   createMatch,
+  normalizeTotalRounds,
   pickBotAction,
   serializeFor,
   type ClientToServer,
@@ -23,9 +24,8 @@ const BOT_AVATARS = ["wolf", "frog", "tiger"];
 export interface LocalGameOptions {
   name: string;
   avatarId?: string;
-  minPairs?: 4 | 5;
+  totalRounds?: number;
   ruleset?: Ruleset;
-  pairing?: Pairing;
   /** Delay before each bot step in ms. Default: random 600-1200. */
   botDelay?: () => number;
   rng?: () => number;
@@ -45,8 +45,9 @@ export function startLocalGame(opts: LocalGameOptions, emit: (msg: ServerToClien
   const rng = opts.rng ?? Math.random;
   const botDelay = opts.botDelay ?? (() => 600 + Math.floor(rng() * 600));
   const ruleset: Ruleset = opts.ruleset === "kanli" ? "kanli" : "normal";
-  const pairing: Pairing = opts.pairing === "ciftli" ? "ciftli" : "tekli";
-  const minPairs: 4 | 5 = opts.minPairs === 5 ? 5 : 4;
+  const pairing: Pairing = "ciftli"; // team mode only
+  const minPairs = 5; // pairs opening always needs 5 pairs
+  const totalRounds = normalizeTotalRounds(opts.totalRounds);
   const assist = false; // every table is unassisted
   const playerId = `local-${(++counter).toString(36)}-${Math.floor(rng() * 1e6).toString(36)}`;
   const humanName = opts.name.trim().slice(0, 16) || "Oyuncu";
@@ -60,7 +61,7 @@ export function startLocalGame(opts: LocalGameOptions, emit: (msg: ServerToClien
   let timer: ReturnType<typeof setTimeout> | undefined;
   let game: GameState = createMatch(
     seats.map((s) => ({ id: s.id, name: s.name, isBot: s.isBot, avatarId: s.avatarId })),
-    { minPairs, ruleset, pairing, assist, potContribution: ruleset === "kanli" ? 10 : 0 },
+    { minPairs, totalRounds, ruleset, pairing, assist, potContribution: ruleset === "kanli" ? 10 : 0 },
     rng,
   );
 
@@ -70,6 +71,7 @@ export function startLocalGame(opts: LocalGameOptions, emit: (msg: ServerToClien
     hostName: humanName,
     started: true,
     minPairs,
+    totalRounds,
     visibility: "private",
     ruleset,
     pairing,

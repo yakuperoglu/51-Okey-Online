@@ -1,4 +1,5 @@
 import {
+  normalizeTotalRounds,
   applyAction,
   createMatch,
   pickBotAction,
@@ -30,6 +31,7 @@ interface Room {
   hostId: string;
   seats: Seat[];
   minPairs: number;
+  totalRounds: number;
   visibility: RoomVisibility;
   ruleset: Ruleset;
   pairing: Pairing;
@@ -76,6 +78,7 @@ function view(room: Room): RoomView {
     hostName: hostName(room),
     started: Boolean(room.game),
     minPairs: room.minPairs,
+    totalRounds: room.totalRounds,
     visibility: room.visibility,
     ruleset: room.ruleset,
     pairing: room.pairing,
@@ -101,6 +104,7 @@ function publicList(): PublicRoom[] {
       seats: r.seats.length,
       started: false,
       minPairs: r.minPairs,
+      totalRounds: r.totalRounds,
       ruleset: r.ruleset,
       pairing: r.pairing,
       assist: r.assist,
@@ -133,8 +137,8 @@ function emitQueue(io: Server, key: string) {
   }
 }
 
-function queueKey(ruleset: Ruleset, pairing: Pairing, minPairs: number, assist: boolean) {
-  return `${ruleset}:${pairing}:${minPairs}:${assist ? "a" : "u"}`;
+function queueKey(ruleset: Ruleset, pairing: Pairing, minPairs: number, totalRounds: number, assist: boolean) {
+  return `${ruleset}:${pairing}:${minPairs}:${totalRounds}:${assist ? "a" : "u"}`;
 }
 
 function leaveQueue(io: Server, socket: import("socket.io").Socket) {
@@ -182,7 +186,8 @@ function startRoom(io: Server, room: Room) {
   room.game = createMatch(
     room.seats.map((s) => ({ id: s.id, name: s.name, isBot: s.isBot, avatarId: s.avatarId })),
     {
-      minPairs: room.minPairs as 4 | 5,
+      minPairs: 5,
+      totalRounds: room.totalRounds,
       ruleset: room.ruleset,
       pairing: room.pairing,
       assist: room.assist,
@@ -193,10 +198,10 @@ function startRoom(io: Server, room: Room) {
   scheduleBots(io, room);
 }
 
-function findPublicSeat(ruleset: Ruleset, pairing: Pairing, minPairs: number, assist: boolean): Room | undefined {
+function findPublicSeat(ruleset: Ruleset, pairing: Pairing, minPairs: number, totalRounds: number, assist: boolean): Room | undefined {
   return [...rooms.values()]
     .filter((r) => r.visibility === "public" && !r.game && r.seats.length < 4)
-    .filter((r) => r.ruleset === ruleset && r.pairing === pairing && r.minPairs === minPairs && r.assist === assist)
+    .filter((r) => r.ruleset === ruleset && r.pairing === pairing && r.minPairs === minPairs && r.totalRounds === totalRounds && r.assist === assist)
     .sort((a, b) => b.seats.length - a.seats.length)[0];
 }
 
@@ -205,6 +210,7 @@ function makeRoom(
   ruleset: Ruleset,
   pairing: Pairing,
   minPairs: number,
+  totalRounds: number,
   assist: boolean,
   visibility: RoomVisibility,
   matchmade: boolean,
@@ -215,6 +221,7 @@ function makeRoom(
     code: roomCode,
     hostId: host.id,
     minPairs,
+    totalRounds,
     visibility,
     ruleset,
     pairing,
@@ -308,17 +315,18 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
     leaveQueue(io, socket);
     const name = payload.name.trim().slice(0, 16) || "Oyuncu";
     const ruleset: Ruleset = payload.ruleset === "normal" ? "normal" : "kanli";
-    const pairing: Pairing = payload.pairing === "ciftli" ? "ciftli" : "tekli";
-    const minPairs = payload.minPairs === 5 ? 5 : 4;
+    const pairing: Pairing = "ciftli"; // team mode only
+    const minPairs = 5; // pairs opening always needs 5 pairs
+    const totalRounds = normalizeTotalRounds(payload.totalRounds);
     const assist = false; // every table is unassisted
-    const open = findPublicSeat(ruleset, pairing, minPairs, assist);
+    const open = findPublicSeat(ruleset, pairing, minPairs, totalRounds, assist);
     if (open) {
       seatSocket(io, socket, open, name, payload.avatarId);
       emitRoom(io, open);
       if (open.matchmade && open.seats.length === 4) startRoom(io, open);
       return;
     }
-    const key = queueKey(ruleset, pairing, minPairs, assist);
+    const key = queueKey(ruleset, pairing, minPairs, totalRounds, assist);
     const list = queues.get(key) ?? [];
     list.push({ socketId: socket.id, name, avatarId: payload.avatarId });
     queues.set(key, list);
@@ -344,6 +352,7 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
         ruleset,
         pairing,
         minPairs,
+        totalRounds,
         assist,
         "public",
         true,
@@ -375,11 +384,12 @@ function handle(io: Server, socket: import("socket.io").Socket, payload: ClientT
     while (rooms.has(roomCode)) roomCode = code();
     const playerId = uid();
     const ruleset: Ruleset = payload.ruleset === "normal" ? "normal" : "kanli";
-    const pairing: Pairing = payload.pairing === "ciftli" ? "ciftli" : "tekli";
+    const pairing: Pairing = "ciftli"; // team mode only
     const room: Room = {
       code: roomCode,
       hostId: playerId,
-      minPairs: payload.minPairs === 5 ? 5 : 4,
+      minPairs: 5,
+      totalRounds: normalizeTotalRounds(payload.totalRounds),
       visibility: payload.visibility === "private" ? "private" : "public",
       ruleset,
       pairing,
