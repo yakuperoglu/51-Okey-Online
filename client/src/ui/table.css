@@ -950,3 +950,73 @@
 /* counter + contextual buttons */
 .hand-counter { color: #b6ff7a; border-color: rgba(182, 255, 122, 0.45); }
 .hand-counter b { color: #fff; margin-left: 3px; }
+
+/* ——— okey not defteri (paper score notebook) ——— */
+.hud-chip b { color: #ffe08a; margin-left: 2px; }
+.sheet-card.nb-card {
+  width: min(520px, 100%);
+  max-height: 94dvh;
+  overflow: auto;
+  padding: 8px 10px 10px;
+  background: #3a2a1c;
+  display: grid;
+  gap: 6px;
+}
+.notebook {
+  position: relative;
+  font-family: "Caveat", "Patrick Hand", cursive;
+  color: #1f3a8a;
+  padding: 18px 10px 8px 26px;
+  border-radius: 4px 4px 8px 8px;
+  background:
+    linear-gradient(90deg, transparent 22px, rgba(205, 50, 50, 0.75) 22px, rgba(205, 50, 50, 0.75) 24px, transparent 24px),
+    repeating-linear-gradient(0deg, transparent 0 25px, rgba(90, 130, 190, 0.35) 25px 26px),
+    radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(160, 120, 60, 0.12), transparent 60%),
+    #f7f0dc;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(150, 110, 50, 0.12);
+}
+.nb-spiral {
+  position: absolute; top: -6px; left: 0; right: 0; height: 18px;
+  display: flex; justify-content: space-evenly; pointer-events: none;
+}
+.nb-spiral i {
+  width: 9px; height: 16px; border-radius: 6px;
+  background: linear-gradient(90deg, #888, #eee 45%, #666);
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+}
+.nb-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 20px; text-align: center; }
+.nb-table th, .nb-table td { padding: 0 3px; height: 26px; line-height: 26px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nb-table .nb-hand { width: 20%; text-align: left; color: #5a4a30; font-weight: 700; }
+.nb-table .nb-hand small { font-size: 16px; color: #8a4b1e; }
+.nb-table .nb-right { border-left: 2px solid rgba(31, 58, 138, 0.5); }
+.nb-teams th { font-size: 24px; color: #7a1f1f; border-bottom: 2px solid rgba(31, 58, 138, 0.55); }
+.nb-names th { font-size: 19px; border-bottom: 1px solid rgba(31, 58, 138, 0.4); }
+.nb-table td.neg { color: #1f3a8a; }
+.nb-table td.pos { color: #8a1f2a; }
+.nb-table tr.cur td { background: rgba(255, 215, 90, 0.35); }
+.nb-total td { font-size: 24px; border-top: 2px solid rgba(31, 58, 138, 0.55); }
+.nb-total td span { border-bottom: 3px solid #1f3a8a; border-radius: 0 0 40% 60%; padding: 0 4px; }
+.nb-total td span.lost { color: #b3202a; border-color: #b3202a; }
+.nb-teamtotal td { font-size: 20px; color: #5a4a30; }
+.nb-teamtotal b { color: #1f3a8a; font-size: 24px; }
+.notebook.compact { padding-top: 14px; }
+.notebook.compact .nb-table { font-size: 17px; }
+.notebook.compact .nb-table th, .notebook.compact .nb-table td { height: 22px; line-height: 22px; }
+.nb-logtoggle { background: transparent; border: 0; color: #e8d9b8; font-size: 13px; justify-self: start; padding: 2px 6px; min-height: 0; }
+.nb-card .log { margin: 0; }
+.round-end.match-end { width: min(520px, 100%); }
+.match-result { display: grid; gap: 4px; padding: 8px; border-radius: 12px; border: 2px solid; }
+.match-result.won { border-color: #8dff9a; background: rgba(60, 160, 80, 0.18); }
+.match-result.lost { border-color: #ff9a9a; background: rgba(170, 50, 50, 0.2); }
+.match-result h4 { margin: 0; font-size: 13px; color: #bfe3c9; letter-spacing: 0.1em; text-transform: uppercase; }
+.mr-big { margin: 0; font-family: Fraunces, serif; font-size: 30px; font-weight: 800; }
+.match-result.won .mr-big { color: #8dff9a; }
+.match-result.lost .mr-big { color: #ff9a9a; }
+.mr-why, .mr-win { margin: 0; font-size: 13px; }
+.mr-win { color: #ffe08a; font-weight: 700; }
+@media (max-height: 460px) {
+  .nb-table { font-size: 18px; }
+  .nb-table th, .nb-table td { height: 22px; line-height: 22px; }
+  .nb-total td { font-size: 21px; }
+}

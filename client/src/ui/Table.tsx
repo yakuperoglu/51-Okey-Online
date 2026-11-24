@@ -14,6 +14,7 @@ import { Istaka, isDrawDrop } from "./Istaka";
 import { scoreRack } from "./rackScore";
 import { TileBack, TileView } from "./Tile";
 import { AvatarView } from "./Avatar";
+import { ScoreSheet } from "./ScoreSheet";
 import "./table.css";
 
 /** Seat position by relative index: 0 = you, then counter-clockwise (next player is on your right). */
@@ -170,6 +171,7 @@ export function Table({
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [sheet, setSheet] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   const [rackSlots, setRackSlots] = useState<(string | null)[]>([]);
   const [overDiscard, setOverDiscard] = useState(false);
   const [overReturn, setOverReturn] = useState(false);
@@ -437,7 +439,9 @@ export function Table({
           <button type="button" className="hud-btn" onClick={onLeave} aria-label="Çık" title="Çık">
             ×
           </button>
-          <span className="hud-chip">{state.round}. El</span>
+          <span className="hud-chip" title="El / toplam el · çarpan">
+            {state.round}/{state.config.totalRounds}. El <b>×{state.handMultiplier}</b>
+          </span>
           {!opened && state.phase === "playing" ? (
             <span className="hud-chip hand-counter" title="Dizdiğin perlerin puanı">
               <b>{counterValue}</b> {pairsActive ? "çift" : "puan"}
@@ -625,10 +629,17 @@ export function Table({
         </div>
       ) : null}
 
-      {state.phase === "roundEnd" ? (
+      {state.phase === "roundEnd" || state.phase === "matchEnd" ? (() => {
+        const matchEnd = state.phase === "matchEnd";
+        const mr = state.matchResult;
+        const myId = youPlayer?.id;
+        const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? "";
+        const highest = mr ? state.players.find((p) => p.id === mr.highestPlayerId) : undefined;
+        const iLost = Boolean(mr && myId && mr.loserTeam.includes(myId));
+        return (
         <div className="modal-wrap">
-          <div className="round-end">
-            <h3>El bitti</h3>
+          <div className={`round-end${matchEnd ? " match-end" : ""}`}>
+            <h3>El bitti · ×{state.finish?.handMultiplier ?? state.handMultiplier}</h3>
             {state.finish ? (
               <p className="re-line">
                 <b>{winner?.name}</b> kazandı
@@ -663,7 +674,22 @@ export function Table({
                 })}
               </tbody>
             </table>
-            {isHost ? (
+            {matchEnd && mr ? (
+              <div className={`match-result ${iLost ? "lost" : "won"}`}>
+                <h4>Oyun bitti</h4>
+                <p className="mr-big">{iLost ? "Kaybettiniz" : "Kazandınız!"}</p>
+                <p className="mr-why">
+                  En yüksek puan: <b>{highest?.name}</b> ({highest?.score}) — {mr.loserTeam.map(nameOf).join(" & ")} kaybetti
+                </p>
+                <p className="mr-win">Kazanan: {mr.winnerTeam.map(nameOf).join(" & ")}</p>
+                <ScoreSheet state={state} compact />
+              </div>
+            ) : null}
+            {matchEnd ? (
+              <button type="button" className="primary" onClick={onLeave}>
+                Lobiye dön
+              </button>
+            ) : isHost ? (
               <button type="button" className="primary" onClick={() => onAction({ type: "nextRound" })}>
                 Yeni el
               </button>
@@ -672,30 +698,25 @@ export function Table({
             )}
           </div>
         </div>
-      ) : null}
+        );
+      })() : null}
 
       {sheet ? (
         <div className="sheet" onClick={() => setSheet(false)}>
-          <div className="sheet-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Skorlar</h3>
-            <ol className="scores">
-              {state.players.map((p, i) => (
-                <li key={p.id} className={i === state.currentIndex ? "turn" : ""}>
-                  <b>{p.name}</b>
-                  <span>
-                    {p.score} · {p.tileCount} taş
-                    {p.opened ? (p.goingPairs ? " · çift" : " · açık") : ""}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <ul className="log">
-              {state.events.map((e) => (
-                <li key={e.id} className={e.kind}>
-                  {e.text}
-                </li>
-              ))}
-            </ul>
+          <div className="sheet-card nb-card" onClick={(e) => e.stopPropagation()}>
+            <ScoreSheet state={state} />
+            <button type="button" className="nb-logtoggle" onClick={() => setShowLog((v) => !v)}>
+              Olaylar {showLog ? "▴" : "▾"}
+            </button>
+            {showLog ? (
+              <ul className="log">
+                {state.events.map((e) => (
+                  <li key={e.id} className={e.kind}>
+                    {e.text}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <button type="button" className="primary" onClick={() => setSheet(false)}>
               Kapat
             </button>
